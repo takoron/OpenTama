@@ -188,4 +188,19 @@ honest, add a test.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+The **software** is MIT — see [LICENSE](LICENSE).
+
+The bundled **Takoron character art** (`opentama/sprites.py`) is an
+original mascot by the project maintainer and is governed by
+[CHARACTER.md](CHARACTER.md), which spells out what is and isn't
+granted. In short:
+
+- Using OpenTama as-is, internally or as an unchanged public fork, is
+  fine — keep `CHARACTER.md` in place.
+- Any other use of the Takoron name or likeness (merchandising, the
+  LINE sticker artwork, derivative character art) needs separate
+  permission.
+- A fork that replaces the sprites with your own pet is a one-file
+  diff — see CHARACTER.md.
+
+The split is also summarised in the top-level [NOTICE](NOTICE) file.

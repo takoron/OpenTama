@@ -21,4 +21,4 @@ __all__ = [
     "save_state",
 ]
 
-__version__ = "0.3.3"
+__version__ = "0.3.4"

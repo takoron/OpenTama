@@ -6,6 +6,22 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.4] — 2026-05-15
+
+### Added
+- **`NOTICE`** file at the repo root summarising the split between
+  MIT-licensed software and `CHARACTER.md`-governed Takoron art.
+- Formal permission text in `CHARACTER.md` covering internal use,
+  public redistribution of this repo unchanged, and the scope of what
+  the bundled sprites do *not* license (the LINE sticker artwork
+  itself, derivative character art, merchandising).
+
+### Changed
+- README has an explicit "code MIT, character per CHARACTER.md"
+  section so the dual-licensing is visible up front.
+- `CHARACTER.md` now links to the original LINE sticker set
+  (*タコロンばかり２*) as the canonical reference for the character.
+
 ## [0.3.3] — 2026-05-15
 
 ### Added

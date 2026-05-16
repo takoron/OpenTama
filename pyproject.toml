@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opentama"
-version = "0.3.3"
+version = "0.3.4"
 description = "A Tamagotchi-style virtual pet that grows when you come to the office. Ships as a Claude Code skill."
 requires-python = ">=3.11"
 license = { text = "MIT" }

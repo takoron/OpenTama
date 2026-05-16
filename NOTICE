@@ -1,0 +1,14 @@
+OpenTama
+========
+
+This product includes software developed by the OpenTama contributors,
+licensed under the MIT License — see the LICENSE file.
+
+This product also includes the Takoron (タコロン) character art, in
+the form of monochrome pixel sprites under `opentama/sprites.py`.
+Takoron is an original mascot character whose distribution and use
+are governed by `CHARACTER.md`, not by the MIT License.
+
+Forks that ship their own pet sprites in place of Takoron should
+delete or rewrite `CHARACTER.md` accordingly. The MIT License on the
+software is unaffected.
