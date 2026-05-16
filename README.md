@@ -1,151 +1,157 @@
 # OpenTama 🥚
 
-> 出社促進キット — a Tamagotchi-style virtual pet that grows **only** while you're connected to the office WiFi. Optional retro ガラケー display, IR communication with other pets, and a sandboxed plugin system for hacking on it.
+> **出社促進キット.** A Tamagotchi-style virtual pet that grows **only**
+> while you're connected to the office WiFi. Ships as a Claude Code
+> skill, talks to other OpenTamas over USB IR, and lives inside a retro
+> ガラケー frame.
 
-Built as a Claude Code skill: drop the directory into the place where your client looks for skills, and Claude will know to use it whenever you mention OpenTama, your office pet, your たまごっち, or 出社.
+| | |
+|--|--|
+| status | beta — 152 tests, three OS targets in CI |
+| python | 3.11 + (uses stdlib `tomllib`) |
+| license | MIT |
+| size | < 30 KB of source; zero runtime dependencies (pyserial optional for IR hardware) |
 
-## Why
+---
 
-- Your pet **grows** while you're at the office (configured WiFi SSID).
-- It **decays** while you're away — happiness 4× faster than at the office.
-- All time-based. No background daemon. Every command advances state.
-- Built to be **understood**: small modules, dependency-injected core, ~140 tests.
-- Built to be **hacked on**: plugin API with explicit capabilities, signed integrity, a trust store.
-- Built to be **enjoyed**: render your pet on a monochrome 90s candybar, a color flip phone, or a late-era widescreen ガラケー.
+## What it is
+
+OpenTama is a small terminal pet that:
+
+- **Grows** while your WiFi SSID matches the configured office SSID.
+- **Decays** when you're away — happiness 4× faster than at the office.
+- **Renders as a pixel sprite** inside one of three retro feature-phone
+  frames (monochrome 90s candybar / mid-2000s color flip / late-era
+  widescreen ガラケー). Drawn with Unicode half-blocks (`▀ ▄ █`) so it
+  could plausibly run on a real ガラケー LCD.
+- **Talks to other OpenTamas** over a USB-attached IR adapter using a
+  small framed protocol with CRC16-CCITT.
+- **Is extensible** via a sandboxed plugin system: capabilities, SHA-256
+  integrity, and a trust-on-first-use store.
+
+It's also a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview)
+skill — drop the folder into `~/.claude/skills/` and Claude will use the
+pet whenever you mention OpenTama, your office pet, your たまごっち, or
+出社. See [INSTALL.md](INSTALL.md) for the full Claude Code wiring guide.
 
 ## Install
 
-```bash
-pip install -e .
-```
-
-Python 3.11+ (uses stdlib `tomllib`). For IR over real hardware, also `pip install pyserial`.
-
-## CLI cheat sheet
-
-### Core
+For yourself:
 
 ```bash
-python -m opentama init たまお OfficeWiFi-SSID
-python -m opentama status                   # default text status
-python -m opentama status --display monokuro|iro|wide   # render in a ガラケー frame
-python -m opentama feed
-python -m opentama play
-python -m opentama sleep
-python -m opentama reset
+pip install opentama                  # once published to your index
+# or, from a checkout
+pip install -e ".[dev]"
 ```
 
-### IR communication (between two OpenTamas)
+For internal company distribution, the typical setup is:
 
 ```bash
-# initiator side
-python -m opentama ir greet  --port serial:///dev/ttyUSB0
-python -m opentama ir gift   --port serial:///dev/ttyUSB0 --kind food   # or --kind toy
-python -m opentama ir visit  --port serial:///dev/ttyUSB0
+# 1) Maintainer publishes to the company package index.
+python -m build && twine upload --repository internal dist/*
 
-# responder side (the friend's machine)
-python -m opentama ir listen --port serial:///dev/ttyUSB0
+# 2) Everyone else installs from there.
+pipx install --index-url https://pypi.internal.example.com/simple opentama
 ```
 
-`--port loopback://` is also accepted for local round-tripping; useful for plugin testing.
-
-### Plugins
+For IR hardware support:
 
 ```bash
-python -m opentama plugin list                              # show discovered plugins
-python -m opentama plugin checksum entry.py                 # SHA-256 to paste into plugin.toml
-python -m opentama plugin trust  ~/.opentama/plugins/foo    # pin <name>:<version> → <sha256>
-python -m opentama plugin revoke foo:0.1.0
-python -m opentama plugin run    foo                        # load + verify + run
-python -m opentama plugin run    foo --port serial:///dev/ttyUSB0   # for IR plugins
+pip install "opentama[ir]"            # adds pyserial
 ```
 
-## Building a plugin
+## Quick start
 
-A plugin is a directory with two files. See `examples/plugins/` for working samples.
+```bash
+# Hatch (one-time).
+opentama init たまお YourOfficeSSID
 
-```
-my-plugin/
-  plugin.toml    # manifest
-  entry.py       # defines a top-level `PLUGIN = MyPlugin()`
-```
+# See the pet inside a retro frame.
+opentama status --display iro
 
-`entry.py`:
+# Care.
+opentama feed
+opentama play
+opentama sleep
 
-```python
-from opentama.plugins import DisplayPlugin
-
-class MyDisplay(DisplayPlugin):
-    name = "my-display"
-    version = "0.1.0"
-
-    def render(self, view):
-        return f"hello {view.name}!"
-
-PLUGIN = MyDisplay()
+# Talk to a teammate's pet over a USB IR adapter.
+opentama ir greet --port serial:///dev/ttyUSB0
 ```
 
-`plugin.toml`:
+`opentama --help` lists everything. Detailed CLI docs:
+[docs/CLI.md](docs/CLI.md) (if present in your fork — same content as in
+[SKILL.md](SKILL.md)).
 
-```toml
-name = "my-display"
-version = "0.1.0"
-entrypoint = "entry"
-plugin_object = "PLUGIN"
-sha256 = "<paste output of `opentama plugin checksum entry.py`>"
-capabilities = ["state.read", "display"]
+## What it looks like
+
+```
+  +----------------------------+
+  | .                       () |
+  +----------------------------+
+  | :)  たまお adult 520gp     |
+  |                            |
+  |         ▄██▄  ▄██▄         |
+  |        ▄█▀██████▀█▄        |
+  |        ██▀▀▀▀▀▀▀▀██        |
+  |        ▀██████████▀        |
+  |         ████  ████         |
+  |          ▀▀    ▀▀          |
+  |                            |
+  | happy   #########...  75   |
+  | hungry  #########...  75   |
+  | energy  #########...  75   |
+  +----------------------------+
+  |  feed  play  sleep  ir  cfg|
+  +----------------------------+
+  |  [ < ]  [ OK ]   [ > ]     |
+  +----------------------------+
 ```
 
-Available capabilities, enforced at every API call on the
-`PluginContext` you receive:
+## Sharing the pet inside your company
 
-| capability     | what it lets you do                                    |
-|----------------|--------------------------------------------------------|
-| `state.read`   | `ctx.get_state()` — a read-only snapshot               |
-| `state.write`  | `ctx.feed()`, `ctx.play()` (or extend in your fork)   |
-| `ir.transmit`  | `ctx.ir_send(bytes)`                                   |
-| `ir.receive`   | `ctx.ir_recv(timeout=…)`                               |
-| `display`      | run via `opentama plugin run` and have output printed |
+There are three good ways:
 
-Using a capability you didn't declare raises `CapabilityDenied`.
+1. **As a Python package on your internal index.** Anyone runs
+   `pipx install opentama` and they're done. Each colleague has their
+   own pet but the binary is centrally maintained.
 
-### Trust model
+2. **As a Claude Code skill in a project repo.** Drop OpenTama into
+   `.claude/skills/opentama/` inside a shared project, commit it, and
+   every contributor's Claude Code session will use the pet
+   automatically. See [INSTALL.md](INSTALL.md).
 
-Plugins are loaded only if both checks pass:
+3. **As a personal dotfile.** Symlink your clone to
+   `~/.claude/skills/opentama/`. Each person manages their own checkout.
 
-1. **Integrity**: the entry-point file's SHA-256 matches `sha256` in
-   the manifest. Edit the file, and load fails.
-2. **Trust**: an entry exists in `~/.opentama/trusted_plugins.json`
-   binding `<name>:<version>` to the matching `<sha256>`. You add this
-   with `opentama plugin trust <dir>`.
+Pets stay personal because state lives in `~/.opentama/state.json`,
+which is *not* in the repo (see `.gitignore`).
 
-This is **educational-grade** security — it stops accidents and
-capability creep, not a determined attacker writing `import os` after
-you've trusted them. Real isolation would need OS-level sandboxing
-(subprocesses, seccomp, wasm).
-
-### Files
+## Files
 
 ```
 opentama/
 ├── core.py            # the Tamagotchi class (DI: ssid_provider, clock)
 ├── state.py           # JSON-backed TamaState
-├── stages.py          # life stages + ASCII art
+├── stages.py          # life stages
+├── sprites.py         # pixel-art bitmaps + half-block renderer
 ├── wifi.py            # cross-platform SSID detection
-├── cli.py             # argparse CLI behind `python -m opentama`
+├── cli.py             # argparse CLI (opentama / python -m opentama)
 ├── ir/
 │   ├── protocol.py    # frames + CRC16-CCITT-FALSE + parse_stream
 │   ├── transport.py   # SerialIRTransport, LoopbackIRTransport
 │   └── session.py     # greet / gift / visit
 ├── plugins/
 │   ├── api.py         # Capability, PluginContext, Plugin base classes
-│   └── loader.py      # PluginManifest, integrity, TrustStore, PluginLoader
+│   └── loader.py      # manifest, integrity, TrustStore, PluginLoader
 └── displays/
     ├── _layout.py     # visual-width-aware padding
     ├── monokuro.py    # mono early-90s candybar
     ├── iro.py         # color mid-2000s flip
     └── wide.py        # late-era widescreen ガラケー
 ```
+
+Plus `examples/plugins/` with two reference plugins (`stats_card`,
+`ir_ping`) and `tests/` with 152 tests.
 
 ## Tests
 
@@ -154,28 +160,22 @@ pip install -e ".[dev]"
 pytest
 ```
 
-The suite hits each layer:
+The suite covers WiFi detection (mocked subprocess), state persistence,
+growth/decay over time, the CLI, the IR wire protocol (CRC vectors,
+round-trips with Japanese payloads, every error class, resync on
+garbage), IR transports (loopback + fake serial), high-level IR
+sessions (concurrent loopback), plugin manifest parsing, SHA-256
+integrity (positive + tamper), trust store semantics, capability
+gating, the pixel sprite renderer, and rendered output for each
+display.
 
-- WiFi detection across macOS/Linux/Windows (mocked subprocess).
-- State persistence (atomic writes, forward-compatible loads).
-- Growth + decay over time, stage transitions, milestones, sickness.
-- CLI commands.
-- IR wire protocol: CRC vectors, round-trips with Japanese payloads,
-  every error class (bad magic / version / CRC / length / unknown
-  type), stream parsing with garbage prefix and partial-tail.
-- IR transports: paired loopback, timeouts, threading, plus a fake
-  serial driving `SerialIRTransport`.
-- IR sessions: greet, gift food, gift toy, visit — all over a paired
-  loopback with both sides driven concurrently.
-- Plugins: manifest parsing, integrity (positive + tamper), trust
-  store (save, load, revoke, version-specific, sha-specific),
-  loader (discover, refuse-untrusted, allow-untrusted, name-mismatch).
-- Capability gating: every capability has an allow-and-deny test;
-  `make_context` is verified to refuse to wire IR for display-only
-  plugins.
-- Displays: rendering for every stage, visual-width sanity, distinct
-  outputs for each backend, mood reflection.
+CI runs on Ubuntu / macOS / Windows × Python 3.11 / 3.12 / 3.13.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). TL;DR: keep it small, keep it
+honest, add a test.
 
 ## License
 
-MIT.
+MIT. See [LICENSE](LICENSE).

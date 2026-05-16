@@ -2,18 +2,9 @@
 
 from __future__ import annotations
 
+from .. import sprites
 from ..plugins.api import StateView
 from ._layout import vpad
-
-
-_PET_ART = {
-    "egg":   ["  ___  ", " /   \\ ", "| o o |", " \\___/ ", "       "],
-    "baby":  [" ,---. ", "( o o )", " \\ ^ / ", "  ---  ", "       "],
-    "child": [" .---. ", "( ^ ^ )", "/| v |\\", " `---' ", "       "],
-    "teen":  [" .-=-. ", "( o.o )", "/|>_<|\\", " `---' ", "       "],
-    "adult": [".-~~-. ", "( ^_^ )", "/|\\=/|\\", "d`---'b", "       "],
-    "elder": [".-~~-. ", "( -.- )", "/|\\_/|\\", "d`---'b", "       "],
-}
 
 
 LCD_WIDTH = 18
@@ -24,13 +15,18 @@ def _bar7(v: int) -> str:
     return "#" * f + "." * (7 - f)
 
 
+def _is_sick(view: StateView) -> bool:
+    return min(view.happiness, view.hunger, view.energy) <= 15
+
+
 class MonokuroDisplay:
     name = "monokuro"
 
     def render(self, view: StateView) -> str:
-        art = _PET_ART.get(view.stage, _PET_ART["egg"])
+        sprite_lines = sprites.render(view.stage, sick=_is_sick(view))
         line = lambda s: "  |" + vpad(s, LCD_WIDTH) + "|"
         bar = "  +" + "-" * LCD_WIDTH + "+"
+        sprite_rows = [line(f"   {row}") for row in sprite_lines]
         return "\n".join(
             [
                 "  " + " " * (LCD_WIDTH // 2 + 1) + "|",
@@ -38,10 +34,7 @@ class MonokuroDisplay:
                 line(" : : : speaker : : "),
                 bar,
                 line(f" {view.name} ({view.stage})"),
-                line(f"   {art[0]}"),
-                line(f"   {art[1]}"),
-                line(f"   {art[2]}"),
-                line(f"   {art[3]}"),
+                *sprite_rows,
                 line(f" hp {_bar7(view.happiness)}"),
                 line(f" fd {_bar7(view.hunger)}"),
                 line(f" en {_bar7(view.energy)}"),

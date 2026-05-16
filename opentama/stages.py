@@ -1,8 +1,16 @@
-"""Life stages for OpenTama and their ASCII art representations."""
+"""Life stages for OpenTama.
+
+The pixel-art bitmap for each stage lives in :mod:`opentama.sprites`;
+this module is the source of truth for stage *thresholds* and exposes
+the rendered art string as :attr:`Stage.art` for the default status
+output.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from . import sprites
 
 
 @dataclass(frozen=True)
@@ -11,60 +19,21 @@ class Stage:
 
     name: str
     min_growth: int
-    art: str
 
-
-EGG_ART = r"""
-   ___
-  /   \
- | ° ° |
-  \___/
-""".strip("\n")
-
-BABY_ART = r"""
-   ,---.
-  ( o o )
-   \ ^ /
-    ---
-""".strip("\n")
-
-CHILD_ART = r"""
-   .---.
-  ( ^ ^ )
-  /| v |\
-   `---'
-""".strip("\n")
-
-TEEN_ART = r"""
-   .-=-.
-  ( o.o )
-  /|>_<|\
-   `---'
-""".strip("\n")
-
-ADULT_ART = r"""
-   .-~~-.
-  ( ^ω^ )
-  /|\=/|\
-  d`---'b
-""".strip("\n")
-
-ELDER_ART = r"""
-   .-~~-.
-  ( -.- )🥢
-  /|\_/|\
-  d`---'b
-""".strip("\n")
+    @property
+    def art(self) -> str:
+        """Pixel-art rendering of this stage (multi-line string)."""
+        return "\n".join(sprites.render(self.name))
 
 
 # Stages in increasing growth order.
 STAGES: tuple[Stage, ...] = (
-    Stage("egg", 0, EGG_ART),
-    Stage("baby", 10, BABY_ART),
-    Stage("child", 50, CHILD_ART),
-    Stage("teen", 200, TEEN_ART),
-    Stage("adult", 500, ADULT_ART),
-    Stage("elder", 1500, ELDER_ART),
+    Stage("egg", 0),
+    Stage("baby", 10),
+    Stage("child", 50),
+    Stage("teen", 200),
+    Stage("adult", 500),
+    Stage("elder", 1500),
 )
 
 

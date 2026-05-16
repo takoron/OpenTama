@@ -2,18 +2,9 @@
 
 from __future__ import annotations
 
+from .. import sprites
 from ..plugins.api import StateView
 from ._layout import vpad
-
-
-_PET_ART = {
-    "egg":   ["    ___    ", "   /   \\   ", "  | o o |  ", "   \\___/   "],
-    "baby":  ["   ,---.   ", "  ( o o )  ", "   \\ ^ /   ", "    ---    "],
-    "child": ["   .---.   ", "  ( ^ ^ )  ", "  /| v |\\  ", "   `---'   "],
-    "teen":  ["   .-=-.   ", "  ( o.o )  ", "  /|>_<|\\  ", "   `---'   "],
-    "adult": ["  .-~~-.   ", "  ( ^_^ )  ", "  /|\\=/|\\  ", "  d`---'b  "],
-    "elder": ["  .-~~-.   ", "  ( -.- )  ", "  /|\\_/|\\  ", "  d`---'b  "],
-}
 
 
 LCD_WIDTH = 28
@@ -24,8 +15,12 @@ def _bar12(v: int) -> str:
     return "#" * f + "." * (12 - f)
 
 
+def _is_sick(view: StateView) -> bool:
+    return min(view.happiness, view.hunger, view.energy) <= 15
+
+
 def _mood(view: StateView) -> str:
-    if min(view.happiness, view.hunger, view.energy) <= 15:
+    if _is_sick(view):
         return ":("
     if view.happiness >= 80:
         return ":D"
@@ -38,10 +33,11 @@ class WideDisplay:
     name = "wide"
 
     def render(self, view: StateView) -> str:
-        art = _PET_ART.get(view.stage, _PET_ART["egg"])
+        sprite_lines = sprites.render(view.stage, sick=_is_sick(view))
         line = lambda s: "  |" + vpad(s, LCD_WIDTH) + "|"
         bar = "  +" + "-" * LCD_WIDTH + "+"
-        topbar = f"{_mood(view)}  {view.name}  .  {view.stage}  .  {view.growth_points}gp"
+        topbar = f"{_mood(view)} {view.name} {view.stage} {view.growth_points}gp"
+        sprite_rows = [line(f"        {row}") for row in sprite_lines]
         return "\n".join(
             [
                 bar,
@@ -49,10 +45,7 @@ class WideDisplay:
                 bar,
                 line(f" {topbar}"),
                 line(""),
-                line(art[0]),
-                line(art[1]),
-                line(art[2]),
-                line(art[3]),
+                *sprite_rows,
                 line(""),
                 line(f" happy   {_bar12(view.happiness)} {view.happiness:>3}"),
                 line(f" hungry  {_bar12(view.hunger)} {view.hunger:>3}"),
