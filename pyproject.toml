@@ -38,10 +38,10 @@ ir = ["pyserial>=3.5"]
 opentama = "opentama.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/your-org/opentama"
-Repository = "https://github.com/your-org/opentama"
-Issues = "https://github.com/your-org/opentama/issues"
-Changelog = "https://github.com/your-org/opentama/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/takoron/OpenTama"
+Repository = "https://github.com/takoron/OpenTama"
+Issues = "https://github.com/takoron/OpenTama/issues"
+Changelog = "https://github.com/takoron/OpenTama/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["opentama*"]
