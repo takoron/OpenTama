@@ -6,6 +6,20 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-05-15
+
+### Added
+- **`CHARACTER.md`** crediting the original Takoron character to its
+  creator (the LINE sticker artist). Includes a short guide on
+  swapping in your own pet by replacing `opentama/sprites.py`.
+
+### Changed
+- Refined every sprite from the artist's reference: cheek dimples
+  appear in `baby` onward, the bonito flake is more prominent,
+  `adult` now has an explicit tongue pixel in the open mouth, and
+  `elder` has clearer drifting steam wisps.
+- README updated with a link to `CHARACTER.md` and refreshed screenshot.
+
 ## [0.3.2] — 2026-05-15
 
 ### Changed

@@ -17,7 +17,7 @@
 ## What it is
 
 OpenTama is a small terminal pet — a takoyaki mascot named **Takoron
-(たころん)**, complete with bonito flake on top — that:
+(タコロン)**, complete with bonito flake on top — that:
 
 - **Grows** while your WiFi SSID matches the configured office SSID.
 - **Decays** when you're away — happiness 4× faster than at the office.
@@ -29,6 +29,10 @@ OpenTama is a small terminal pet — a takoyaki mascot named **Takoron
   small framed protocol with CRC16-CCITT.
 - **Is extensible** via a sandboxed plugin system: capabilities, SHA-256
   integrity, and a trust-on-first-use store.
+
+> Takoron is an original mascot character — see
+> [CHARACTER.md](CHARACTER.md) for the credit and notes on swapping in
+> your own pet.
 
 It's also a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview)
 skill — drop the folder into `~/.claude/skills/` and Claude will use the
@@ -89,14 +93,14 @@ opentama ir greet --port serial:///dev/ttyUSB0
   +----------------------------+
   | .                       () |
   +----------------------------+
-  | :D たころん adult 520gp    |
+  | :D タコロン adult 520gp    |
   |                            |
   |               ▄██▄         |
   |            ▄▄██▄██▄        |
   |         ▄▄██▀███▀███       |
-  |         ████████▄███       |
-  |         ███▀████▀███       |
-  |         ██▄▄████▄▄██       |
+  |         ███████▄████       |
+  |         ██▀ ████ ▀██       |
+  |         ██▄██████▄██       |
   |         ████▄▄ ▄████▄      |
   |          ▀████████▀        |
   |                            |
@@ -110,8 +114,8 @@ opentama ir greet --port serial:///dev/ttyUSB0
   +----------------------------+
 ```
 
-Bonito flake on top, sauce + nori + ginger dots on the upper half,
-`^_^` closed eyes, open smile with a tongue peeking out.
+かつおぶしの飾り、上半分にトッピングの点々、^_^ の閉じ目、
+両ほっぺのチーク、開いた口からペロッと舌が見えます。
 
 ## Sharing the pet inside your company
 
