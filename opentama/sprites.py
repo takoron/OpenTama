@@ -1,4 +1,8 @@
-"""Takoron (たころん) — OpenTama's cute octopus pet, in pixels.
+"""Takoron (たころん) — OpenTama's takoyaki pet, in pixels.
+
+Takoron is a takoyaki (たこ焼き) — a round ball of dough with octopus
+inside, traditionally topped with sauce, green nori, and pickled
+ginger, and crowned with a piece of dancing bonito flake.
 
 Each stage is a 14×16 monochrome bitmap. Pixels are ``#`` (on) or
 anything else (off). The :func:`render` function compresses two
@@ -8,30 +12,24 @@ lines tall — small enough to fit on a real ガラケー LCD.
 
 Takoron's growth path:
 
-* **egg**   — smooth shell with sleepy ^^ closed eyes and a smile.
-* **baby**  — head only, two big eyes, tiny stub legs.
-* **child** — fuller head, four short tentacles.
-* **teen**  — bigger body, wavier tentacles, wider smile.
-* **adult** — round face, dimpled cheeks, four flowing tentacles.
-* **elder** — adult Takoron with a magnificent mustache.
+* **egg**   — a plain dough ball, fresh out of the pan.
+* **baby**  — face appears: closed ^_^ eyes, tiny smile.
+* **child** — first topping dot lands.
+* **teen**  — toppings scattered, a small bonito flake rises.
+* **adult** — full Takoron: flake, all toppings, big smile, open mouth.
+* **elder** — adult Takoron with extra steam wisps drifting up.
 
 A ``sick`` overlay adds two sweat-drop pixels at the top corners.
-
-Reading the bitmap source:
-  * a fully-solid body row is ``.############.`` (12-wide head, padded
-    to 14)
-  * an eye row uses ``.##..####..##.`` — head edges, 2-wide eye
-    whites at cols 3–4 and 9–10, head bridge in the middle.
-  * tentacle rows alternate ``.##.##..##.##.`` (centered, 4 stubs)
-    and offset variants to suggest motion.
 """
 
 from __future__ import annotations
 
 
 SPRITES: dict[str, list[str]] = {
-    # ----- egg ----------------------------------------------------------
+    # ----- egg --------------------------------------------------------
+    # plain dough ball, no face, no toppings.
     "egg": [
+        "..............",
         "..............",
         ".....####.....",
         "....######....",
@@ -39,110 +37,115 @@ SPRITES: dict[str, list[str]] = {
         "..##########..",
         ".############.",
         ".############.",
-        ".##..####..##.",  # sleepy ^^ closed eyes
         ".############.",
+        ".############.",
+        ".############.",
+        ".############.",
+        "..##########..",
+        "...########...",
+        "....######....",
+        ".....####.....",
+    ],
+    # ----- baby -------------------------------------------------------
+    # face arrives: ^_^ closed eyes + a tiny smile.
+    "baby": [
+        "..............",
+        "..............",
+        ".....####.....",
+        "....######....",
+        "...########...",
+        "..##########..",
+        ".############.",
+        ".###.####.###.",  # ^_^ upper line (narrow gaps)
+        ".##..####..##.",  # ^_^ lower line (wider gaps)
         ".############.",
         ".####.##.####.",  # tiny smile
         ".############.",
         "..##########..",
         "...########...",
         "....######....",
-        ".....####.....",
-    ],
-    # ----- baby ---------------------------------------------------------
-    "baby": [
-        "..............",
-        "....######....",
-        "...########...",
-        "..##########..",
-        ".############.",
-        ".##..####..##.",  # big eye row 1
-        ".##..####..##.",  # big eye row 2
-        ".############.",
-        ".####.##.####.",  # small mouth
-        ".############.",
-        "..##########..",
-        "...########...",
-        "....######....",
-        "....##..##....",  # two stub legs
-        "....##..##....",
         "..............",
     ],
-    # ----- child --------------------------------------------------------
+    # ----- child ------------------------------------------------------
+    # first sauce dot lands on the top.
     "child": [
         "..............",
+        ".....####.....",
         "....######....",
         "...########...",
         "..##########..",
+        ".####.#######.",  # one topping dot at col 5
         ".############.",
-        ".##..####..##.",  # eyes
-        ".##..####..##.",
+        ".###.####.###.",  # eye upper
+        ".##..####..##.",  # eye lower
         ".############.",
-        ".####.##.####.",  # small smile
+        ".####.##.####.",  # smile
         ".############.",
         "..##########..",
         "...########...",
-        ".##.##..##.##.",  # 4 tentacle stubs
-        ".##.##..##.##.",
-        ".##.##..##.##.",
+        "....######....",
         "..............",
     ],
-    # ----- teen ---------------------------------------------------------
+    # ----- teen -------------------------------------------------------
+    # toppings scatter; a tiny bonito flake starts to dance.
     "teen": [
-        "....######....",
+        ".........##...",  # flake top
+        "........####..",  # flake body
+        "......##.##...",  # flake meets ball
+        "....########..",
+        "...##########.",
+        ".####.###.###.",  # 2 topping dots
+        ".############.",
+        ".###.####.###.",  # eye upper
+        ".##..####..##.",  # eye lower
+        ".############.",
+        ".####.##.####.",  # smile
+        ".############.",
+        "..##########..",
         "...########...",
-        "..##########..",
-        ".############.",
-        "##############",
-        "###..####..###",  # eye row 1
-        "###..####..###",  # eye row 2
-        "##############",
-        "##.########.##",  # cheek dimples
-        "###.######.###",  # smile
-        "##############",
-        ".############.",
-        ".##.##..##.##.",  # tentacles wave left
-        ".##.##..##.##.",
-        "..##.##.##.##.",  # tentacles wave right
-        "..##.##.##.##.",
+        "....######....",
+        "..............",
     ],
-    # ----- adult --------------------------------------------------------
+    # ----- adult ------------------------------------------------------
+    # full Takoron: bonito flake on top, sauce + nori + ginger dots,
+    # big closed-eye smile and an open mouth with the tongue showing.
     "adult": [
-        "....######....",
-        "..##########..",
-        ".############.",
-        "##############",
-        "###..####..###",  # eye row 1
-        "###..####..###",  # eye row 2
-        "##############",
-        "##.########.##",  # cheek dimples
-        "###.######.###",  # smile upper
-        "####.####.####",  # smile lower
-        ".############.",
-        ".##.##..##.##.",  # 4 tentacles
-        ".##.##..##.##.",
-        ".##.##..##.##.",
-        "..##.##.##.##.",  # tail end waves
-        "..##.##.##.##.",
+        "........##....",  # flake top
+        ".......####...",  # flake body
+        "......##.##...",  # flake base
+        "....########..",  # ball top
+        "...##########.",  # ball widens
+        ".####.###.###.",  # topping row 1
+        ".########.###.",  # topping row 2
+        ".############.",  # cooked/face divider
+        ".############.",  # face top
+        ".###.####.###.",  # ^_^ eye upper
+        ".##..####..##.",  # ^_^ eye lower
+        ".############.",  # mid face
+        ".####....####.",  # open smile (wide gap)
+        ".######.######",  # tongue (mouth narrowing with tongue at col 7)
+        "..##########..",  # ball bottom
+        "...########...",  # rounded bottom
     ],
-    # ----- elder --------------------------------------------------------
+    # ----- elder ------------------------------------------------------
+    # adult Takoron with extra steam puffs drifting up.
     "elder": [
-        "....######....",
+        "...#....##....",  # steam puff + flake top
+        ".#.....####...",  # more steam + flake
+        "......##.##...",  # flake base
+        "....########..",
+        "...##########.",
+        ".####.###.###.",  # toppings
+        ".########.###.",
+        ".############.",
+        ".############.",
+        ".###.####.###.",  # eyes (still ^_^, classic)
+        ".##..####..##.",
+        ".############.",
+        ".####.##.####.",  # smaller, content smile
+        ".#####..#####.",  # mouth narrows
         "..##########..",
-        ".############.",
-        "##.########.##",  # bushy eyebrows
-        "##############",
-        "###..####..###",  # eyes
-        "###..####..###",
-        "##############",
-        "####.####.####",  # mustache top curl
-        "###.######.###",  # mustache middle
-        "##.########.##",  # mustache tips
-        ".############.",
-        ".##.##..##.##.",
-        ".##.##..##.##.",
-        "..##.##.##.##.",
-        "..##.##.##.##.",
+        "...########...",
     ],
 }
 

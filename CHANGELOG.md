@@ -6,6 +6,21 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-05-15
+
+### Changed
+- **Takoron is a takoyaki, not an octopus.** Redesigned every sprite
+  after a reference drawing of the actual mascot. The pet is a round
+  takoyaki ball with:
+  - A bonito flake (かつおぶし) standing up at the top right.
+  - Sauce / nori / pickled-ginger topping dots scattered on the upper
+    half.
+  - A `^_^` closed-eye smile (two rows of half-block crescents).
+  - An open mouth with the tongue peeking out (adult stage).
+  - Steam wisps drifting up (elder stage).
+- Stage progression now tells the story: plain dough → face appears →
+  first topping → flake rises → full takoyaki → wise elder with steam.
+
 ## [0.3.1] — 2026-05-15
 
 ### Changed

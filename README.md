@@ -16,8 +16,8 @@
 
 ## What it is
 
-OpenTama is a small terminal pet — an octopus mascot named **Takoron
-(たころん)** — that:
+OpenTama is a small terminal pet — a takoyaki mascot named **Takoron
+(たころん)**, complete with bonito flake on top — that:
 
 - **Grows** while your WiFi SSID matches the configured office SSID.
 - **Decays** when you're away — happiness 4× faster than at the office.
@@ -91,14 +91,14 @@ opentama ir greet --port serial:///dev/ttyUSB0
   +----------------------------+
   | :D たころん adult 520gp    |
   |                            |
-  |          ▄▄██████▄▄        |
-  |        ▄████████████▄      |
-  |        ███  ████  ███      |
-  |        ██▀████████▀██      |
-  |        ███▄▀████▀▄███      |
-  |         ██▀██▀▀██▀██       |
-  |         ██ ██  ██ ██       |
-  |          ██ ██ ██ ██       |
+  |               ▄██▄         |
+  |            ▄▄██▄██▄        |
+  |         ▄▄██▀███▀███       |
+  |         ████████▄███       |
+  |         ███▀████▀███       |
+  |         ██▄▄████▄▄██       |
+  |         ████▄▄ ▄████▄      |
+  |          ▀████████▀        |
   |                            |
   | happy   #########...  80   |
   | hungry  #########...  80   |
@@ -109,6 +109,9 @@ opentama ir greet --port serial:///dev/ttyUSB0
   |  [ < ]  [ OK ]   [ > ]     |
   +----------------------------+
 ```
+
+Bonito flake on top, sauce + nori + ginger dots on the upper half,
+`^_^` closed eyes, open smile with a tongue peeking out.
 
 ## Sharing the pet inside your company
 
