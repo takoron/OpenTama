@@ -1,0 +1,11 @@
+# Example plugin manifest.
+# After editing entry.py, regenerate the sha256 with:
+#   python -m opentama plugin checksum entry.py
+# then paste it below.
+
+name = "stats_card"
+version = "0.1.0"
+entrypoint = "entry"
+plugin_object = "PLUGIN"
+sha256 = "83754795243cddd512bb5f5a8d1e8abad22a6ce0855354ce1df49e23caa5c7c6"
+capabilities = ["state.read", "display"]

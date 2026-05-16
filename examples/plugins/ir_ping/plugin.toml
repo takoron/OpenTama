@@ -1,0 +1,6 @@
+name = "ir_ping"
+version = "0.1.0"
+entrypoint = "entry"
+plugin_object = "PLUGIN"
+sha256 = "327cd221fe3a7e4415e941d5b01cb103c4e84b97085d48e3f1d6db92bac517ff"
+capabilities = ["ir.transmit", "ir.receive"]

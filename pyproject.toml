@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opentama"
+version = "0.1.0"
+description = "A Claude Code skill: a Tamagotchi that grows when you come to the office."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "OpenTama contributors" }]
+readme = "README.md"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+opentama = "opentama.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["opentama*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
