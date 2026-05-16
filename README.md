@@ -16,7 +16,8 @@
 
 ## What it is
 
-OpenTama is a small terminal pet that:
+OpenTama is a small terminal pet — an octopus mascot named **Takoron
+(たころん)** — that:
 
 - **Grows** while your WiFi SSID matches the configured office SSID.
 - **Decays** when you're away — happiness 4× faster than at the office.
@@ -88,18 +89,20 @@ opentama ir greet --port serial:///dev/ttyUSB0
   +----------------------------+
   | .                       () |
   +----------------------------+
-  | :)  たまお adult 520gp     |
+  | :D たころん adult 520gp    |
   |                            |
-  |         ▄██▄  ▄██▄         |
-  |        ▄█▀██████▀█▄        |
-  |        ██▀▀▀▀▀▀▀▀██        |
-  |        ▀██████████▀        |
-  |         ████  ████         |
-  |          ▀▀    ▀▀          |
+  |          ▄▄██████▄▄        |
+  |        ▄████████████▄      |
+  |        ███  ████  ███      |
+  |        ██▀████████▀██      |
+  |        ███▄▀████▀▄███      |
+  |         ██▀██▀▀██▀██       |
+  |         ██ ██  ██ ██       |
+  |          ██ ██ ██ ██       |
   |                            |
-  | happy   #########...  75   |
-  | hungry  #########...  75   |
-  | energy  #########...  75   |
+  | happy   #########...  80   |
+  | hungry  #########...  80   |
+  | energy  #########...  80   |
   +----------------------------+
   |  feed  play  sleep  ir  cfg|
   +----------------------------+

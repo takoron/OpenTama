@@ -41,7 +41,7 @@ class IroDisplay:
                 line(""),
                 *sprite_rows,
                 line(""),
-                line(f" {view.name} ({view.stage},{view.growth_points}gp)"),
+                line(f" {view.name} {view.stage} {view.growth_points}gp"),
                 line(f" happy  {_bar10(view.happiness)} {view.happiness:>3}"),
                 line(f" hungry {_bar10(view.hunger)} {view.hunger:>3}"),
                 line(f" energy {_bar10(view.energy)} {view.energy:>3}"),

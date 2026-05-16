@@ -1,136 +1,182 @@
-"""Tamagotchi-style pixel sprites for the pet.
+"""Takoron (たころん) — OpenTama's cute octopus pet, in pixels.
 
-Each stage is a small monochrome bitmap defined as a list of strings
-where ``#`` is an "on" pixel and any other character is "off". The
-:func:`render` function compresses two vertical pixels into one
-terminal cell using the half-block characters ``▀ ▄ █``, so a 12x12
-sprite fits in 6 terminal rows.
+Each stage is a 14×16 monochrome bitmap. Pixels are ``#`` (on) or
+anything else (off). The :func:`render` function compresses two
+vertical pixels into one terminal cell using the half-block
+characters ``▀ ▄ █``, so each sprite renders as 14 cells wide × 8
+lines tall — small enough to fit on a real ガラケー LCD.
 
-This is what makes OpenTama actually feel like a Tamagotchi: the
-drawing is small enough that it could plausibly run on the LCD of a
-real ガラケー or the original 32x16 Tamagotchi display.
+Takoron's growth path:
+
+* **egg**   — smooth shell with sleepy ^^ closed eyes and a smile.
+* **baby**  — head only, two big eyes, tiny stub legs.
+* **child** — fuller head, four short tentacles.
+* **teen**  — bigger body, wavier tentacles, wider smile.
+* **adult** — round face, dimpled cheeks, four flowing tentacles.
+* **elder** — adult Takoron with a magnificent mustache.
+
+A ``sick`` overlay adds two sweat-drop pixels at the top corners.
+
+Reading the bitmap source:
+  * a fully-solid body row is ``.############.`` (12-wide head, padded
+    to 14)
+  * an eye row uses ``.##..####..##.`` — head edges, 2-wide eye
+    whites at cols 3–4 and 9–10, head bridge in the middle.
+  * tentacle rows alternate ``.##.##..##.##.`` (centered, 4 stubs)
+    and offset variants to suggest motion.
 """
 
 from __future__ import annotations
 
-from typing import Iterable, List
-
-
-# ---------------------------------------------------------------------------
-# Sprite bitmaps — 12 wide × 12 tall = 6 rendered terminal rows.
-# Designed so each stage is visually distinct and silhouette-readable.
-# ---------------------------------------------------------------------------
-
 
 SPRITES: dict[str, list[str]] = {
+    # ----- egg ----------------------------------------------------------
     "egg": [
-        "....####....",
-        "...######...",
-        "..########..",
-        ".##########.",
-        ".##########.",
-        ".####.#####.",
-        ".##########.",
-        ".##########.",
-        ".########.#.",
-        "..########..",
-        "...######...",
-        "....####....",
+        "..............",
+        ".....####.....",
+        "....######....",
+        "...########...",
+        "..##########..",
+        ".############.",
+        ".############.",
+        ".##..####..##.",  # sleepy ^^ closed eyes
+        ".############.",
+        ".############.",
+        ".####.##.####.",  # tiny smile
+        ".############.",
+        "..##########..",
+        "...########...",
+        "....######....",
+        ".....####.....",
     ],
+    # ----- baby ---------------------------------------------------------
     "baby": [
-        "............",
-        "....####....",
-        "...######...",
-        "..########..",
-        "..##.##.##..",  # two eye dots
-        "..########..",
-        "..########..",
-        "...######...",
-        "....####....",
-        "....#..#....",
-        "....#..#....",
-        "............",
+        "..............",
+        "....######....",
+        "...########...",
+        "..##########..",
+        ".############.",
+        ".##..####..##.",  # big eye row 1
+        ".##..####..##.",  # big eye row 2
+        ".############.",
+        ".####.##.####.",  # small mouth
+        ".############.",
+        "..##########..",
+        "...########...",
+        "....######....",
+        "....##..##....",  # two stub legs
+        "....##..##....",
+        "..............",
     ],
+    # ----- child --------------------------------------------------------
     "child": [
-        "....####....",
-        "...######...",
-        "..########..",
-        "..##.##.##..",  # eyes
-        "..########..",
-        "..##.##.##..",  # mouth row (just a hint)
-        "..########..",
-        "..########..",
-        "...######...",
-        "...#....#...",
-        "..##....##..",
-        "............",
+        "..............",
+        "....######....",
+        "...########...",
+        "..##########..",
+        ".############.",
+        ".##..####..##.",  # eyes
+        ".##..####..##.",
+        ".############.",
+        ".####.##.####.",  # small smile
+        ".############.",
+        "..##########..",
+        "...########...",
+        ".##.##..##.##.",  # 4 tentacle stubs
+        ".##.##..##.##.",
+        ".##.##..##.##.",
+        "..............",
     ],
+    # ----- teen ---------------------------------------------------------
     "teen": [
-        "...#....#...",  # antennae / horns
-        "...##..##...",
-        "...######...",
-        "..########..",
-        ".####.######",  # offset eye highlight
-        ".##########.",
-        ".####.#####.",
-        ".##########.",
-        "..########..",
-        "..##....##..",
-        ".####..####.",
-        "............",
+        "....######....",
+        "...########...",
+        "..##########..",
+        ".############.",
+        "##############",
+        "###..####..###",  # eye row 1
+        "###..####..###",  # eye row 2
+        "##############",
+        "##.########.##",  # cheek dimples
+        "###.######.###",  # smile
+        "##############",
+        ".############.",
+        ".##.##..##.##.",  # tentacles wave left
+        ".##.##..##.##.",
+        "..##.##.##.##.",  # tentacles wave right
+        "..##.##.##.##.",
     ],
+    # ----- adult --------------------------------------------------------
     "adult": [
-        "..##....##..",  # tall ears
-        ".####..####.",
-        ".##########.",
-        "##.######.##",  # eyes inset
-        "############",
-        "##........##",  # mouth wide
-        "############",
-        ".##########.",
-        ".####..####.",
-        ".####..####.",
-        "..##....##..",
-        "............",
+        "....######....",
+        "..##########..",
+        ".############.",
+        "##############",
+        "###..####..###",  # eye row 1
+        "###..####..###",  # eye row 2
+        "##############",
+        "##.########.##",  # cheek dimples
+        "###.######.###",  # smile upper
+        "####.####.####",  # smile lower
+        ".############.",
+        ".##.##..##.##.",  # 4 tentacles
+        ".##.##..##.##.",
+        ".##.##..##.##.",
+        "..##.##.##.##.",  # tail end waves
+        "..##.##.##.##.",
     ],
+    # ----- elder --------------------------------------------------------
     "elder": [
-        "..####..####",  # eyebrows
-        ".##########.",
-        ".##.####.##.",  # eyes
-        ".##########.",
-        ".###.##.###.",  # mustache start
-        "############",
-        ".###....###.",  # mustache row
-        ".##########.",
-        ".####..####.",
-        "..##.##.##..",
-        "..##....##..",
-        "............",
+        "....######....",
+        "..##########..",
+        ".############.",
+        "##.########.##",  # bushy eyebrows
+        "##############",
+        "###..####..###",  # eyes
+        "###..####..###",
+        "##############",
+        "####.####.####",  # mustache top curl
+        "###.######.###",  # mustache middle
+        "##.########.##",  # mustache tips
+        ".############.",
+        ".##.##..##.##.",
+        ".##.##..##.##.",
+        "..##.##.##.##.",
+        "..##.##.##.##.",
     ],
 }
 
 
-# A "sick" overlay: same silhouette as the current stage but with sweat
-# drops added in the corners. Applied by :func:`render` when ``sick=True``.
+# Width sanity check at import time.
+for _name, _rows in SPRITES.items():
+    _w = len(_rows[0])
+    for _i, _row in enumerate(_rows):
+        if len(_row) != _w:
+            raise AssertionError(
+                f"sprite {_name!r} row {_i} is {len(_row)} chars, expected {_w}"
+            )
+del _name, _rows, _w, _i, _row
+
+
+# Sweat-drop overlay used when the pet's stats drop too low.
 _SICK_OVERLAY = [
-    "#..........#",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
+    "#............#",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
 ]
-
-
-# ---------------------------------------------------------------------------
-# Renderer
-# ---------------------------------------------------------------------------
 
 
 def _overlay(base: list[str], overlay: list[str]) -> list[str]:
@@ -145,48 +191,39 @@ def _overlay(base: list[str], overlay: list[str]) -> list[str]:
 
 
 def render(stage: str, *, sick: bool = False) -> list[str]:
-    """Return the sprite as a list of terminal lines.
+    """Render Takoron at ``stage`` as a list of terminal lines.
 
-    Two source pixels stack into one terminal cell:
-        top on,  bottom on  -> █
-        top on,  bottom off -> ▀
-        top off, bottom on  -> ▄
-        top off, bottom off -> (space)
-
-    Each output line is exactly as wide as the sprite (no padding).
+    Two source pixels stack into one terminal cell via half-blocks
+    ``▀ ▄ █`` (and space).
     """
     bitmap = SPRITES.get(stage, SPRITES["egg"])
     if sick:
         bitmap = _overlay(bitmap, _SICK_OVERLAY)
 
-    # Pair rows two at a time.
     lines: list[str] = []
     for i in range(0, len(bitmap), 2):
         top = bitmap[i]
         bottom = bitmap[i + 1] if i + 1 < len(bitmap) else "." * len(top)
-        line_chars = []
+        chars = []
         for t, b in zip(top, bottom):
-            t_on = t == "#"
-            b_on = b == "#"
+            t_on, b_on = t == "#", b == "#"
             if t_on and b_on:
-                line_chars.append("█")
+                chars.append("█")
             elif t_on:
-                line_chars.append("▀")
+                chars.append("▀")
             elif b_on:
-                line_chars.append("▄")
+                chars.append("▄")
             else:
-                line_chars.append(" ")
-        lines.append("".join(line_chars))
+                chars.append(" ")
+        lines.append("".join(chars))
     return lines
 
 
 def sprite_width(stage: str = "egg") -> int:
-    """Visual width of a sprite (every cell is 1 column wide)."""
     return len(SPRITES.get(stage, SPRITES["egg"])[0])
 
 
 def sprite_height(stage: str = "egg") -> int:
-    """Rendered height (terminal lines) of a sprite."""
     return (len(SPRITES.get(stage, SPRITES["egg"])) + 1) // 2
 
 

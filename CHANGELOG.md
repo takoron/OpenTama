@@ -6,6 +6,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-05-15
+
+### Changed
+- **Takoron (たころん) redesign.** The pet is now an octopus mascot
+  named Takoron, with proper symmetric eye placement, dimpled cheeks,
+  smile, and tentacles. Sprite grids enlarged to 14×16 (rendered as
+  14 cells × 8 lines) so there is room for facial detail. The
+  `sick` overlay now puts sweat drops at the corners.
+- Tightened `iro` name line format so 4-character Japanese names
+  (e.g. たころん) fit inside the LCD without truncation.
+
 ## [0.3.0] — 2026-05-15
 
 ### Added
