@@ -296,6 +296,46 @@ def cmd_proximity_clear(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_proximity_scan(args: argparse.Namespace) -> int:
+    """Listen on an IR transport for ``--duration`` seconds, log peers seen."""
+    from .proximity import (
+        IRProximityDetector,
+        RSSI_BUCKETS,
+        append_sighting,
+    )
+
+    if args.rssi not in RSSI_BUCKETS:
+        print(
+            f"❌ rssi must be one of {RSSI_BUCKETS}; got {args.rssi!r}",
+            file=sys.stderr,
+        )
+        return 2
+
+    transport = _open_transport(args.port, getattr(args, "baud", None))
+    detector = IRProximityDetector(transport, rssi_bucket=args.rssi)
+
+    end = time.time() + args.duration
+    seen = 0
+    print(
+        f"📡 scanning IR on {args.port} for {args.duration:.0f}s "
+        f"(rssi={args.rssi})..."
+    )
+    try:
+        while time.time() < end:
+            remaining = max(0.0, end - time.time())
+            sightings = detector.poll(timeout=min(0.5, remaining))
+            for s in sightings:
+                append_sighting(s)
+                seen += 1
+                name = s.nickname or s.peer_id
+                print(f"  📡 {name}  [{s.rssi_bucket}]")
+    finally:
+        transport.close()
+
+    print(f"scan complete — {seen} sighting(s) logged.")
+    return 0
+
+
 # --- IR subcommands ---------------------------------------------------------
 
 
@@ -616,6 +656,36 @@ def build_parser() -> argparse.ArgumentParser:
 
     ppc = pp_sub.add_parser("clear", help="Delete the proximity log.")
     ppc.set_defaults(func=cmd_proximity_clear)
+
+    pps = pp_sub.add_parser(
+        "scan",
+        help="Listen on an IR transport for N seconds; log every peer seen.",
+    )
+    pps.add_argument(
+        "--port",
+        required=True,
+        help="Transport URI (serial:///dev/ttyUSB0 or loopback://).",
+    )
+    pps.add_argument(
+        "--baud",
+        type=int,
+        default=None,
+        help="Baud rate (serial only).",
+    )
+    pps.add_argument(
+        "--duration",
+        type=float,
+        default=30.0,
+        help="How many seconds to listen (default: 30).",
+    )
+    pps.add_argument(
+        "--rssi",
+        default="unknown",
+        help="Signal-strength bucket to tag sightings with "
+        "(close / near / far / unknown). USB-IR has no RSSI; "
+        "use whatever fits your physical setup.",
+    )
+    pps.set_defaults(func=cmd_proximity_scan)
 
     # --- teams ----------------------------------------------------------
     pt = sub.add_parser(

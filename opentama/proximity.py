@@ -25,9 +25,13 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional, Protocol
+from typing import TYPE_CHECKING, Callable, Iterable, Optional, Protocol
+
+if TYPE_CHECKING:
+    from .ir.transport import IRTransport
 
 
 # --- data types -------------------------------------------------------------
@@ -158,6 +162,110 @@ class LoopbackDetector:
         out = list(self.queue)
         self.queue.clear()
         return out
+
+
+class IRProximityDetector:
+    """Detector that converts inbound IR frames into :class:`PeerSighting`.
+
+    Wraps an :class:`opentama.ir.transport.IRTransport`. Each
+    :meth:`poll` call reads whatever bytes are available, frames them
+    using :func:`opentama.ir.protocol.parse_stream`, and emits one
+    sighting per recognised frame. Half-frames at the buffer boundary
+    are kept and re-tried on the next poll.
+
+    The detector is intentionally **passive**: it never sends ACKs,
+    never returns greetings, never applies happiness deltas. That is
+    :class:`opentama.ir.session.Session`'s job. This class only
+    *observes* who is nearby; the explicit-exchange tier of the
+    proximity UX (see issue #1) is what decides to actually talk
+    back, and it does so via the existing Session API.
+
+    Frame → sighting mapping:
+
+    - ``HELLO``  → peer_id = ``name``, nickname = ``name``
+    - ``GIFT``   → peer_id = ``from``, nickname = ``from``
+    - ``VISIT``  → peer_id = ``from``, nickname = ``from``
+    - ``STATE``  → peer_id = ``name`` if present, otherwise skipped
+    - ``ACK``    → ignored (acknowledgement of a session-level exchange)
+
+    Frames with no usable peer identifier are dropped.
+    """
+
+    def __init__(
+        self,
+        transport: "IRTransport",
+        *,
+        rssi_bucket: str = "unknown",
+        chunk_size: int = 4096,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        self.transport = transport
+        self.rssi_bucket = rssi_bucket
+        self.chunk_size = chunk_size
+        self.clock = clock
+        self._buffer: bytes = b""
+
+    def poll(self, timeout: float = 0.0) -> list[PeerSighting]:
+        # Local imports keep proximity.py importable on machines without
+        # the optional IR extras installed; we only touch IR symbols
+        # when somebody actually constructs an IRProximityDetector.
+        from .ir.protocol import FrameType, parse_stream
+
+        chunk = self.transport.recv(self.chunk_size, timeout=timeout)
+        if not chunk:
+            # Try parsing what's already in the buffer (e.g. caller
+            # primed us with data before the first real recv).
+            if not self._buffer:
+                return []
+        else:
+            self._buffer += chunk
+
+        frames, self._buffer = parse_stream(self._buffer)
+        if not frames:
+            return []
+
+        now = self.clock()
+        out: list[PeerSighting] = []
+        for frame in frames:
+            sighting = self._frame_to_sighting(frame, now, FrameType)
+            if sighting is not None:
+                out.append(sighting)
+        return out
+
+    def _frame_to_sighting(
+        self,
+        frame: "object",  # opentama.ir.protocol.Frame; kept loose to avoid cycles
+        now: float,
+        FrameType: "type",
+    ) -> Optional[PeerSighting]:
+        try:
+            data = frame.json()  # type: ignore[attr-defined]
+        except Exception:
+            return None
+        if not isinstance(data, dict):
+            return None
+
+        ftype = frame.type  # type: ignore[attr-defined]
+        peer_id: Optional[str] = None
+        if ftype == FrameType.HELLO or ftype == FrameType.STATE:
+            name = data.get("name")
+            if isinstance(name, str) and name:
+                peer_id = name
+        elif ftype == FrameType.GIFT or ftype == FrameType.VISIT:
+            from_ = data.get("from")
+            if isinstance(from_, str) and from_:
+                peer_id = from_
+        # ACK and unknown types: no useful peer identifier — skip.
+        if peer_id is None:
+            return None
+
+        return PeerSighting(
+            peer_id=peer_id,
+            nickname=peer_id,
+            lang=None,
+            rssi_bucket=self.rssi_bucket,
+            detected_at=now,
+        )
 
 
 # --- digest -----------------------------------------------------------------

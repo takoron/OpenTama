@@ -249,3 +249,136 @@ def test_format_digest_falls_back_to_peer_id_when_no_nickname():
     digest = summarise([_s("anon-peer-id-xyz", 100.0)])
     out = format_digest(digest)
     assert "anon-peer-id-xyz" in out
+
+
+# --- IRProximityDetector ---------------------------------------------------
+
+
+from opentama.ir.protocol import Frame, FrameType, encode
+from opentama.ir.transport import LoopbackIRTransport
+from opentama.proximity import IRProximityDetector
+
+
+def _drain(detector: IRProximityDetector, attempts: int = 8) -> list[PeerSighting]:
+    """Poll until no more sightings come back, or attempts exhausted."""
+    out: list[PeerSighting] = []
+    for _ in range(attempts):
+        chunk = detector.poll(timeout=0.05)
+        if not chunk:
+            # Give the loopback one more chance — but bail on the
+            # *second* empty poll to avoid hanging if nothing ever
+            # arrives.
+            chunk2 = detector.poll(timeout=0.05)
+            if not chunk2:
+                break
+            out.extend(chunk2)
+        else:
+            out.extend(chunk)
+    return out
+
+
+def test_ir_detector_hello_to_sighting():
+    a, b = LoopbackIRTransport.pair()
+    b.send(
+        encode(
+            Frame.of(
+                FrameType.HELLO,
+                {"name": "アリス", "stage": "child", "gp": 60},
+            )
+        )
+    )
+    detector = IRProximityDetector(
+        a, rssi_bucket="close", clock=lambda: 100.0
+    )
+    sightings = _drain(detector)
+    assert len(sightings) == 1
+    s = sightings[0]
+    assert s.peer_id == "アリス"
+    assert s.nickname == "アリス"
+    assert s.rssi_bucket == "close"
+    assert s.detected_at == 100.0
+
+
+def test_ir_detector_empty_transport_returns_no_sightings():
+    a, _ = LoopbackIRTransport.pair()
+    detector = IRProximityDetector(a)
+    assert detector.poll(timeout=0.05) == []
+
+
+def test_ir_detector_multiple_frames_in_one_stream():
+    a, b = LoopbackIRTransport.pair()
+    b.send(encode(Frame.of(FrameType.HELLO, {"name": "alice"})))
+    b.send(encode(Frame.of(FrameType.HELLO, {"name": "bob"})))
+    detector = IRProximityDetector(a, clock=lambda: 200.0)
+    names = sorted(s.peer_id for s in _drain(detector))
+    assert names == ["alice", "bob"]
+
+
+def test_ir_detector_recognises_gift_and_visit():
+    a, b = LoopbackIRTransport.pair()
+    b.send(encode(Frame.of(FrameType.GIFT, {"kind": "food", "from": "bob"})))
+    b.send(encode(Frame.of(FrameType.VISIT, {"from": "carol"})))
+    detector = IRProximityDetector(a)
+    names = sorted(s.peer_id for s in _drain(detector))
+    assert names == ["bob", "carol"]
+
+
+def test_ir_detector_ignores_ack():
+    a, b = LoopbackIRTransport.pair()
+    b.send(encode(Frame.of(FrameType.ACK, {"thanks": "bob"})))
+    detector = IRProximityDetector(a)
+    # ACK carries no peer identifier we trust — should be silently dropped.
+    assert _drain(detector) == []
+
+
+def test_ir_detector_resyncs_past_garbage():
+    a, b = LoopbackIRTransport.pair()
+    # Garbage prefix, then a valid HELLO.
+    b.send(b"\x00\xff\x01\x02\x03")
+    b.send(encode(Frame.of(FrameType.HELLO, {"name": "dora"})))
+    detector = IRProximityDetector(a)
+    sightings = _drain(detector)
+    assert [s.peer_id for s in sightings] == ["dora"]
+
+
+def test_ir_detector_uses_specified_rssi_bucket():
+    a, b = LoopbackIRTransport.pair()
+    b.send(encode(Frame.of(FrameType.HELLO, {"name": "elise"})))
+    detector = IRProximityDetector(a, rssi_bucket="near")
+    sightings = _drain(detector)
+    assert sightings and sightings[0].rssi_bucket == "near"
+
+
+def test_ir_detector_drops_hello_without_name():
+    a, b = LoopbackIRTransport.pair()
+    b.send(encode(Frame.of(FrameType.HELLO, {})))  # no name → no peer id
+    detector = IRProximityDetector(a)
+    assert _drain(detector) == []
+
+
+def test_ir_detector_end_to_end_with_session_initiator():
+    """A real Session.greet() on B should appear as a sighting on A's detector.
+
+    This verifies that the detector tolerates the actual on-the-wire
+    output of the existing greet() initiator, not just hand-crafted
+    HELLO frames.
+    """
+    from opentama.core import Tamagotchi
+    from opentama.ir.session import Session
+    from opentama.state import TamaState
+
+    a, b = LoopbackIRTransport.pair()
+    detector = IRProximityDetector(a)
+    # B is the initiator pet.
+    b_state = TamaState(
+        name="フランク",
+        company_ssid="OfficeWiFi",
+        last_tick_at=1.0,
+    )
+    b_tama = Tamagotchi(b_state, ssid_provider=lambda: "OfficeWiFi", clock=lambda: 1.0)
+    b_session = Session(b_tama, b, timeout=0.2)
+    # greet() will send a HELLO and then try to read a reply (which we
+    # don't bother sending — we only care that A sees the HELLO).
+    b_session.greet()
+    sightings = _drain(detector)
+    assert any(s.peer_id == "フランク" for s in sightings)

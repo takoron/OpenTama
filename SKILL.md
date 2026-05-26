@@ -49,6 +49,10 @@ python -m opentama proximity digest                 # plain-text summary
 python -m opentama proximity digest --notify-teams  # also post to Teams
 python -m opentama proximity clear
 
+# Listen on an IR transport and log every peer that pings us.
+python -m opentama proximity scan --port serial:///dev/ttyUSB0 --duration 30
+python -m opentama proximity scan --port serial:///dev/ttyUSB0 --duration 60 --rssi near
+
 # Plugins.
 python -m opentama plugin list
 python -m opentama plugin checksum path/to/entry.py
@@ -105,6 +109,11 @@ For proximity (peer-pet sightings):
   <peer-id> [--nickname X] [--lang Y] [--rssi close|near|far|unknown]`.
 - "今日のすれ違い一覧" → `proximity list`.
 - "すれ違いログを消して" → `proximity clear`.
+- "赤外線で待ち受けて" / "IR でスキャン" / "proximity scan" →
+  `proximity scan --port serial:///dev/ttyUSB0 --duration 30`. Listens
+  on the IR transport for the given duration and logs every HELLO /
+  GIFT / VISIT frame it sees as a sighting. The transport URI is the
+  same as the `ir` subcommands (`serial://...` or `loopback://`).
 - Storage is a JSONL file at `~/.opentama/proximity.jsonl` (override
   with `OPENTAMA_PROXIMITY_LOG`). Records are tiny (≈100 bytes each)
   and deliberately carry only an opaque peer id, optional public
@@ -209,6 +218,15 @@ Records are intentionally tiny and metadata-light: `peer_id`,
 optional `nickname`, optional `lang`, a coarse `rssi_bucket`
 ("close" / "near" / "far" / "unknown"), and a unix timestamp.
 
+**IR detector.** `IRProximityDetector` wraps any
+`opentama.ir.transport.IRTransport` and converts every inbound
+`HELLO` / `GIFT` / `VISIT` frame into a `PeerSighting`. It is
+strictly passive — it never ACKs, never returns greetings — so it
+can coexist with a separate `Session.serve_once` loop that actually
+performs the exchange. The `proximity scan` CLI exposes this:
+listen on `serial:///dev/ttyUSB0` (or `loopback://`) for N seconds
+and every peer that pings becomes a logged sighting.
+
 `proximity digest --notify-teams` posts the summary as an Adaptive
 Card via the same Power Automate webhook used by `teams notify`; the
 card lists each peer once with their sighting count and the closest
@@ -269,9 +287,11 @@ correctly.
   URL resolver, HTTP POST transport, high-level `notify` /
   `notify_digest` helpers). No third-party deps.
 - `opentama/proximity.py` — peer-pet sighting log, abstract `Detector`
-  protocol, in-memory `LoopbackDetector`, per-peer aggregation
-  (`summarise`), and human-readable `format_digest`. JSONL storage at
-  `~/.opentama/proximity.jsonl`.
+  protocol, in-memory `LoopbackDetector`, **`IRProximityDetector`**
+  (wraps an `opentama.ir.transport.IRTransport` and converts inbound
+  HELLO/GIFT/VISIT frames into sightings), per-peer aggregation
+  (`summarise`), and human-readable `format_digest`. JSONL storage
+  at `~/.opentama/proximity.jsonl`.
 - `examples/plugins/stats_card/` — a sample display plugin.
 - `examples/plugins/ir_ping/` — a sample IR plugin (transmit + receive).
 

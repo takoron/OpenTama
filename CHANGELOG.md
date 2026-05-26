@@ -6,6 +6,25 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **IR-driven proximity detection.** New `IRProximityDetector` in
+  `opentama/proximity.py` wraps any `opentama.ir.transport.IRTransport`
+  and converts inbound `HELLO` / `GIFT` / `VISIT` frames into
+  `PeerSighting` records. Strictly passive — never sends ACKs, never
+  returns greetings — so it can coexist with `Session.serve_once`.
+- **`python -m opentama proximity scan`** — listen on an IR transport
+  for `--duration` seconds and log every peer pinging us. Uses the
+  same `serial://...` / `loopback://` transport URIs as the existing
+  `ir` subcommands. With this, the existing `proximity digest
+  --notify-teams` pipe becomes an end-to-end office-IR ⇄ Teams flow:
+  scan over IR → aggregate → post Adaptive Card to a Teams channel.
+- 9 new IR-detector tests in `tests/test_proximity.py` (covering
+  HELLO/GIFT/VISIT mapping, ACK rejection, buffer resync past garbage
+  bytes, configurable RSSI bucket, missing-name dropping, and an
+  end-to-end test that runs a real `Session.greet()` initiator on
+  one loopback endpoint and confirms the other endpoint's detector
+  sees the peer).
+
 ## [0.4.0] — 2026-05-26
 
 ### Added
