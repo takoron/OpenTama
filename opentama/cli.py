@@ -336,6 +336,87 @@ def cmd_proximity_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_proximity_broadcast(args: argparse.Namespace) -> int:
+    """Periodically send a vCard over OBEX. Silent on no-response.
+
+    This is the "no button press" workflow: leave a USB-IrDA adapter
+    on the desk pointing at the room, run ``proximity broadcast``,
+    and any nearby feature phone in *赤外線受信スタンバイ* mode will
+    quietly accept the card as it walks past. Most send attempts will
+    fail with no peer listening, and that's fine — they're silent.
+    """
+    from .obex import (
+        OBEXResponseError,
+        OBEXTransportError,
+        build_vcard_text,
+        send_vcard,
+    )
+
+    text = build_vcard_text(
+        full_name=args.name,
+        nickname=args.nickname,
+        note=args.note,
+        tel=args.tel,
+        email=args.email,
+    )
+    file_name = args.file_name or f"{args.name}.vcf"
+
+    end = time.time() + args.duration
+    sent = 0
+    silent = 0
+
+    print(
+        f"📢 broadcasting vCard '{args.name}' on {args.port} "
+        f"for {args.duration:.0f}s (every {args.interval:.1f}s)..."
+    )
+
+    while time.time() < end:
+        loop_start = time.time()
+        try:
+            transport = _open_transport(args.port, getattr(args, "baud", None))
+        except Exception as e:  # noqa: BLE001 — surface adapter errors
+            print(f"  ⚠️ transport open failed: {e}", file=sys.stderr)
+            # Back off the full interval before retrying.
+            _sleep_responsive(args.interval, end)
+            continue
+
+        try:
+            try:
+                send_vcard(
+                    transport,
+                    text,
+                    name=file_name,
+                    mime_type=args.mime_type,
+                    timeout=args.timeout,
+                )
+                sent += 1
+                print(f"  📨 delivered ({sent} total)")
+            except (OBEXResponseError, OBEXTransportError):
+                silent += 1
+        finally:
+            transport.close()
+
+        elapsed = time.time() - loop_start
+        remaining = args.interval - elapsed
+        if remaining > 0:
+            _sleep_responsive(remaining, end)
+
+    print(
+        f"broadcast done — {sent} delivered, "
+        f"{silent} silent (no peer)."
+    )
+    return 0
+
+
+def _sleep_responsive(duration: float, deadline: float) -> None:
+    """Sleep up to ``duration`` seconds, but break out by ``deadline``."""
+    step = 0.25
+    while duration > 0 and time.time() < deadline:
+        chunk = min(step, duration)
+        time.sleep(chunk)
+        duration -= chunk
+
+
 def cmd_proximity_send_vcard(args: argparse.Namespace) -> int:
     """Send a vCard to a nearby feature phone over an OBEX-capable transport."""
     from .obex import (
@@ -785,6 +866,50 @@ def build_parser() -> argparse.ArgumentParser:
         help="Per-step OBEX response timeout in seconds.",
     )
     ppsv.set_defaults(func=cmd_proximity_send_vcard)
+
+    ppbc = pp_sub.add_parser(
+        "broadcast",
+        help="Periodically OBEX-PUT a vCard so any phone in 赤外線受信スタンバイ "
+        "picks it up automatically (no button press on the phone).",
+    )
+    ppbc.add_argument(
+        "--port",
+        required=True,
+        help="Transport URI (serial:///dev/ttyUSB0 etc.).",
+    )
+    ppbc.add_argument("--baud", type=int, default=None)
+    ppbc.add_argument(
+        "--name", required=True, help="FN field on the broadcast vCard."
+    )
+    ppbc.add_argument("--nickname", default=None)
+    ppbc.add_argument("--note", default=None)
+    ppbc.add_argument("--tel", default=None)
+    ppbc.add_argument("--email", default=None)
+    ppbc.add_argument(
+        "--file-name", default=None, help="Filename phone sees (default: <name>.vcf)."
+    )
+    ppbc.add_argument(
+        "--mime-type", default="text/x-vcard"
+    )
+    ppbc.add_argument(
+        "--duration",
+        type=float,
+        default=3600.0,
+        help="How long to keep broadcasting, seconds (default: 1 hour).",
+    )
+    ppbc.add_argument(
+        "--interval",
+        type=float,
+        default=10.0,
+        help="Seconds between attempts (default: 10).",
+    )
+    ppbc.add_argument(
+        "--timeout",
+        type=float,
+        default=2.0,
+        help="Per-attempt OBEX response timeout (default: 2s).",
+    )
+    ppbc.set_defaults(func=cmd_proximity_broadcast)
 
     # --- teams ----------------------------------------------------------
     pt = sub.add_parser(

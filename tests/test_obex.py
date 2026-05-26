@@ -347,3 +347,127 @@ def test_send_vcard_transport_timeout():
             name="x.vcf",
             timeout=0.2,
         )
+
+
+# --- proximity broadcast CLI ------------------------------------------------
+
+
+def test_proximity_broadcast_loops_until_duration_elapses(monkeypatch, capsys):
+    """The CLI broadcast loop should call send_vcard repeatedly.
+
+    We monkey-patch the heavy bits (transport opener, send_vcard) so
+    the test runs in milliseconds.
+    """
+    from opentama import cli
+    from opentama import obex
+
+    calls = []
+
+    class _FakeTransport:
+        def close(self):
+            pass
+
+    def fake_open_transport(uri, baud):
+        return _FakeTransport()
+
+    def fake_send_vcard(transport, text, *, name, mime_type, timeout):
+        calls.append((name, text, timeout))
+        # half the time the phone "responds", half the time silent
+        if len(calls) % 2 == 1:
+            return obex.SendResult(
+                ok=True,
+                connect_response=obex.OBEXResponse(
+                    opcode=0xA0, length=3, body=b"", raw=b"\xA0\x00\x03"
+                ),
+                put_response=obex.OBEXResponse(
+                    opcode=0xA0, length=3, body=b"", raw=b"\xA0\x00\x03"
+                ),
+                disconnect_response=None,
+            )
+        raise obex.OBEXTransportError("no peer")
+
+    monkeypatch.setattr(cli, "_open_transport", fake_open_transport)
+    monkeypatch.setattr("opentama.obex.send_vcard", fake_send_vcard)
+
+    parser = cli.build_parser()
+    args = parser.parse_args([
+        "proximity",
+        "broadcast",
+        "--port", "loopback://",
+        "--name", "たころん",
+        "--duration", "0.3",
+        "--interval", "0.05",
+        "--timeout", "0.1",
+    ])
+    rc = args.func(args)
+    assert rc == 0
+    # Should have looped multiple times.
+    assert len(calls) >= 2, calls
+    # First arg of the first call is the filename.
+    assert calls[0][0] == "たころん.vcf"
+
+    out = capsys.readouterr().out
+    assert "broadcasting" in out
+    assert "broadcast done" in out
+    # At least one success message printed.
+    assert "delivered" in out
+
+
+def test_proximity_broadcast_swallows_obex_response_errors(monkeypatch):
+    """A phone that rejects the PUT should not crash the loop."""
+    from opentama import cli
+    from opentama import obex
+
+    call_count = {"n": 0}
+
+    class _FakeTransport:
+        def close(self):
+            pass
+
+    def fake_open_transport(uri, baud):
+        return _FakeTransport()
+
+    def fake_send_vcard(transport, text, *, name, mime_type, timeout):
+        call_count["n"] += 1
+        raise obex.OBEXResponseError(0xC0, b"\xC0\x00\x03")
+
+    monkeypatch.setattr(cli, "_open_transport", fake_open_transport)
+    monkeypatch.setattr("opentama.obex.send_vcard", fake_send_vcard)
+
+    parser = cli.build_parser()
+    args = parser.parse_args([
+        "proximity", "broadcast",
+        "--port", "loopback://",
+        "--name", "x",
+        "--duration", "0.2",
+        "--interval", "0.05",
+    ])
+    rc = args.func(args)
+    assert rc == 0
+    # Looped at least once despite the errors.
+    assert call_count["n"] >= 1
+
+
+def test_proximity_broadcast_recovers_when_transport_open_fails(monkeypatch):
+    """If the adapter can't be opened we keep going (and don't crash)."""
+    from opentama import cli
+
+    open_attempts = {"n": 0}
+
+    def fake_open_transport(uri, baud):
+        open_attempts["n"] += 1
+        raise RuntimeError("USB unplugged")
+
+    monkeypatch.setattr(cli, "_open_transport", fake_open_transport)
+
+    parser = cli.build_parser()
+    args = parser.parse_args([
+        "proximity", "broadcast",
+        "--port", "loopback://",
+        "--name", "x",
+        "--duration", "0.15",
+        "--interval", "0.05",
+    ])
+    rc = args.func(args)
+    assert rc == 0
+    assert open_attempts["n"] >= 1
