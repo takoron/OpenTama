@@ -198,6 +198,104 @@ def cmd_teams_notify(args: argparse.Namespace) -> int:
     return 1
 
 
+# --- Proximity subcommands --------------------------------------------------
+
+
+def cmd_proximity_record(args: argparse.Namespace) -> int:
+    from .proximity import PeerSighting, RSSI_BUCKETS, append_sighting
+
+    if args.rssi not in RSSI_BUCKETS:
+        print(
+            f"❌ rssi must be one of {RSSI_BUCKETS}; got {args.rssi!r}",
+            file=sys.stderr,
+        )
+        return 2
+    now = time.time() if args.at is None else float(args.at)
+    s = PeerSighting(
+        peer_id=args.peer_id,
+        nickname=args.nickname,
+        lang=args.lang,
+        rssi_bucket=args.rssi,
+        detected_at=now,
+    )
+    append_sighting(s)
+    print(
+        f"📡 recorded sighting of {s.peer_id}"
+        + (f" ({s.nickname})" if s.nickname else "")
+    )
+    return 0
+
+
+def cmd_proximity_list(args: argparse.Namespace) -> int:
+    from .proximity import load_sightings
+
+    since = float(args.since) if args.since is not None else None
+    rows = load_sightings(since=since)
+    if not rows:
+        print("(no sightings)")
+        return 0
+    for s in rows:
+        name = s.nickname or s.peer_id
+        lang = f" [{s.lang}]" if s.lang else ""
+        print(
+            f"{s.detected_at:>14.2f}  {s.rssi_bucket:>7}  "
+            f"{name}{lang}"
+        )
+    return 0
+
+
+def cmd_proximity_digest(args: argparse.Namespace) -> int:
+    from .proximity import format_digest, load_sightings, summarise
+
+    since = float(args.since) if args.since is not None else None
+    sightings = load_sightings(since=since)
+    digest = summarise(sightings)
+    print(format_digest(digest))
+
+    if args.notify_teams:
+        from .teams import TeamsConfigError, TeamsTransportError, notify_digest
+
+        # Owner name: explicit --owner > pet name from state > None.
+        owner = args.owner
+        if owner is None:
+            state = load_state()
+            if state is not None:
+                owner = state.name
+        try:
+            result = notify_digest(
+                digest,
+                owner_name=owner,
+                webhook_url=getattr(args, "webhook_url", None),
+                timeout=args.timeout,
+            )
+        except TeamsConfigError as e:
+            print(f"❌ {e}", file=sys.stderr)
+            return 2
+        except TeamsTransportError as e:
+            print(f"❌ Teams transport failed: {e}", file=sys.stderr)
+            return 1
+        if result.ok:
+            print(f"📨 Teams notified ({result.status}).")
+            return 0
+        print(
+            f"❌ Teams responded with HTTP {result.status}.",
+            file=sys.stderr,
+        )
+        return 1
+
+    return 0
+
+
+def cmd_proximity_clear(args: argparse.Namespace) -> int:
+    from .proximity import clear_log
+
+    if clear_log():
+        print("proximity log cleared.")
+    else:
+        print("no proximity log to clear.")
+    return 0
+
+
 # --- IR subcommands ---------------------------------------------------------
 
 
@@ -450,6 +548,74 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional transport URI for IR-capable plugins.",
     )
     prun.set_defaults(func=cmd_plugin_run)
+
+    # --- proximity ------------------------------------------------------
+    pp_ = sub.add_parser(
+        "proximity",
+        help="Peer-pet sightings: log nearby OpenTamas, review the day's "
+        "encounters, optionally summarise to Teams.",
+    )
+    pp_sub = pp_.add_subparsers(dest="proximity_cmd", required=True)
+
+    ppr = pp_sub.add_parser(
+        "record", help="Record a single peer sighting."
+    )
+    ppr.add_argument("peer_id", help="Opaque peer id (stable identifier).")
+    ppr.add_argument("--nickname", default=None, help="Optional public nickname.")
+    ppr.add_argument("--lang", default=None, help="Owner's language tag, e.g. 'ja'.")
+    ppr.add_argument(
+        "--rssi",
+        default="unknown",
+        help="Signal strength bucket: close / near / far / unknown.",
+    )
+    ppr.add_argument(
+        "--at",
+        type=float,
+        default=None,
+        help="Override the timestamp (unix seconds); defaults to now.",
+    )
+    ppr.set_defaults(func=cmd_proximity_record)
+
+    ppl = pp_sub.add_parser("list", help="List recorded sightings.")
+    ppl.add_argument(
+        "--since",
+        default=None,
+        help="Only show sightings at or after this unix timestamp.",
+    )
+    ppl.set_defaults(func=cmd_proximity_list)
+
+    ppd = pp_sub.add_parser(
+        "digest",
+        help="Summarise sightings into one entry per peer; optionally "
+        "post the digest to Teams.",
+    )
+    ppd.add_argument(
+        "--since",
+        default=None,
+        help="Only include sightings at or after this unix timestamp.",
+    )
+    ppd.add_argument(
+        "--notify-teams",
+        action="store_true",
+        help="Also post the digest to Teams via the Power Automate webhook.",
+    )
+    ppd.add_argument(
+        "--owner",
+        default=None,
+        help="Owner name to show in the Teams card (defaults to pet name).",
+    )
+    ppd.add_argument(
+        "--webhook-url",
+        default=None,
+        help="Override the OPENTAMA_TEAMS_WEBHOOK env var.",
+    )
+    ppd.add_argument(
+        "--timeout", type=float, default=10.0, help="HTTP timeout for Teams."
+    )
+    ppd.set_defaults(func=cmd_proximity_digest)
+
+    ppc = pp_sub.add_parser("clear", help="Delete the proximity log.")
+    ppc.set_defaults(func=cmd_proximity_clear)
 
     # --- teams ----------------------------------------------------------
     pt = sub.add_parser(

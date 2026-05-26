@@ -30,9 +30,12 @@ import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from .core import Tamagotchi
+
+if TYPE_CHECKING:
+    from .proximity import Digest
 
 
 # --- exceptions -------------------------------------------------------------
@@ -231,5 +234,107 @@ def notify(
     """
     url = resolve_webhook_url(webhook_url)
     payload = build_status_card(tama)
+    status = post_card(payload, url, timeout=timeout, opener=opener)
+    return NotifyResult(ok=200 <= status < 300, status=status, webhook_url=url)
+
+
+# --- proximity digest card --------------------------------------------------
+
+
+def build_digest_card(
+    digest: "Digest", *, owner_name: Optional[str] = None
+) -> dict[str, Any]:
+    """Build a Teams Adaptive Card summarising a proximity digest.
+
+    The card mirrors the plain-text format from
+    :func:`opentama.proximity.format_digest`: a title naming the owner
+    (if known), a one-line summary with the peer count, and a FactSet
+    where each peer is one row ``"nickname [lang]"`` → ``"N 回 / closest=X"``.
+    If the digest is empty the card simply says so.
+    """
+    title = (
+        f"📡 {owner_name} のすれ違いログ"
+        if owner_name
+        else "📡 OpenTama すれ違いログ"
+    )
+
+    body: list[dict[str, Any]] = [
+        {
+            "type": "TextBlock",
+            "text": title,
+            "weight": "Bolder",
+            "size": "Medium",
+            "wrap": True,
+        }
+    ]
+
+    if digest.peer_count == 0:
+        body.append(
+            {
+                "type": "TextBlock",
+                "text": "今日のすれ違いはありませんでした。",
+                "wrap": True,
+                "spacing": "Small",
+                "isSubtle": True,
+            }
+        )
+    else:
+        body.append(
+            {
+                "type": "TextBlock",
+                "text": (
+                    f"今日 {digest.peer_count} 人とすれ違いました "
+                    f"(計 {digest.total_sightings} 回)"
+                ),
+                "wrap": True,
+                "spacing": "Small",
+                "isSubtle": True,
+            }
+        )
+        facts: list[dict[str, str]] = []
+        for e in digest.peers:
+            name = e.nickname or e.peer_id
+            lang = f" [{e.lang}]" if e.lang else ""
+            facts.append(
+                _fact(
+                    f"{name}{lang}",
+                    f"{e.sightings} 回 / closest={e.closest_bucket}",
+                )
+            )
+        body.append({"type": "FactSet", "facts": facts})
+
+    card = {
+        "type": "AdaptiveCard",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+        "version": ADAPTIVE_CARD_SCHEMA_VERSION,
+        "body": body,
+    }
+    return {
+        "type": "message",
+        "attachments": [
+            {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": card,
+            }
+        ],
+    }
+
+
+def notify_digest(
+    digest: "Digest",
+    *,
+    owner_name: Optional[str] = None,
+    webhook_url: Optional[str] = None,
+    timeout: float = 10.0,
+    opener: Optional[Opener] = None,
+) -> NotifyResult:
+    """Post a proximity digest to Teams as an Adaptive Card.
+
+    Same semantics as :func:`notify` but for the "today's sightings"
+    summary rather than a pet status snapshot. Raises
+    :class:`TeamsConfigError` / :class:`TeamsTransportError`.
+    """
+    url = resolve_webhook_url(webhook_url)
+    payload = build_digest_card(digest, owner_name=owner_name)
     status = post_card(payload, url, timeout=timeout, opener=opener)
     return NotifyResult(ok=200 <= status < 300, status=status, webhook_url=url)

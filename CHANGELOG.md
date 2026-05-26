@@ -6,6 +6,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-26
+
 ### Added
 - **Microsoft Teams integration.** `python -m opentama teams notify`
   posts an Adaptive Card 1.4 snapshot of the pet (name, stage, stats,
@@ -15,15 +17,37 @@ project adheres to [Semantic Versioning](https://semver.org/).
   `--webhook-url`. No Microsoft Graph, no OAuth — the URL is the only
   secret. The CLI refuses non-HTTP(S) URLs to prevent env-var tampering
   from silently exfiltrating data.
-- `opentama/teams.py` — `build_status_card` / `resolve_webhook_url` /
-  `post_card` / `notify` plus typed errors `TeamsConfigError`,
-  `TeamsTransportError`. No third-party Python dependencies; uses
-  `urllib` only.
-- `tests/test_teams.py` — 22 new tests covering payload shape,
-  office vs. away framing, sick marking, achievement truncation,
-  UTF-8 round-tripping, env-var resolution, URL validation, HTTP
-  and URL error wrapping, response cleanup, and the high-level
-  `notify` helper.
+- **Proximity (peer-pet sightings).** Two-tier UX for cross-pet
+  encounters (see issue #1): a background detection layer logs nearby
+  OpenTama peers as tiny JSONL records (≈100 bytes each, opaque peer
+  id + optional nickname/lang + rssi bucket + timestamp), and an
+  explicit `proximity digest` step lets the owner review the day's
+  encounters before any actual exchange. New CLI subcommands:
+  `proximity {record, list, digest, clear}`. `proximity digest
+  --notify-teams` posts the summary as an Adaptive Card via the same
+  Power Automate webhook used by `teams notify`. Storage path:
+  `~/.opentama/proximity.jsonl` (override with
+  `OPENTAMA_PROXIMITY_LOG`).
+- `opentama/teams.py` — `build_status_card`, `build_digest_card`,
+  `resolve_webhook_url`, `post_card`, `notify`, `notify_digest`,
+  typed errors `TeamsConfigError`, `TeamsTransportError`. No
+  third-party Python dependencies; uses `urllib` only.
+- `opentama/proximity.py` — `PeerSighting`, append-only JSONL log,
+  abstract `Detector` protocol, in-memory `LoopbackDetector`, per-peer
+  aggregation (`summarise`), human-readable `format_digest`. The
+  current release ships the abstract `Detector` and the loopback;
+  OS/hardware-specific detectors (USB-IR, BLE, mDNS) are left to
+  plugins.
+- `tests/test_teams.py` — 29 tests covering payload shape (status +
+  digest cards), office vs. away framing, sick marking, achievement
+  truncation, UTF-8 round-tripping, env-var resolution, URL
+  validation, HTTP and URL error wrapping, response cleanup, and the
+  high-level `notify` / `notify_digest` helpers.
+- `tests/test_proximity.py` — 19 tests covering sighting
+  immutability, log path resolution, append/load round-trip, since
+  filter, corrupt-line handling, loopback detector draining,
+  per-peer aggregation, RSSI bucket priority, window filters, and
+  digest formatting.
 - `HARDWARE.md` — design note for a possible M5StickC + IR hardware
   edition (future work, not implemented).
 
@@ -34,9 +58,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
   the subprocess reader thread and left `r.stdout = None`, surfacing
   as an `AttributeError` from any CLI command that calls `tick()`
   (`status`, `feed`, `play`, `sleep`). Now decodes with
-  `errors="replace"` and defensively checks `r.stdout is None`. Fixes
-  three previously-failing `tests/test_cli.py` cases on JA-locale
-  Windows hosts; suite now passes 174/174 there.
+  `errors="replace"` and defensively checks `r.stdout is None`. Full
+  suite passes 200/200 on JA-locale Windows hosts.
 
 ## [0.3.4] — 2026-05-15
 

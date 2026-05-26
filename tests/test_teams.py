@@ -299,3 +299,110 @@ def test_notify_propagates_transport_error(monkeypatch):
 
     with pytest.raises(TeamsTransportError):
         notify(_make_tama(), opener=opener)
+
+
+# --- build_digest_card / notify_digest ------------------------------------
+
+
+from opentama.proximity import PeerSighting, summarise
+from opentama.teams import build_digest_card, notify_digest
+
+
+def _digest_with_peers():
+    return summarise(
+        [
+            PeerSighting(
+                peer_id="p1",
+                nickname="アリス",
+                lang="ja",
+                rssi_bucket="close",
+                detected_at=100.0,
+            ),
+            PeerSighting(
+                peer_id="p1",
+                rssi_bucket="near",
+                detected_at=110.0,
+            ),
+            PeerSighting(
+                peer_id="p2",
+                lang="en",
+                rssi_bucket="far",
+                detected_at=120.0,
+            ),
+        ]
+    )
+
+
+def test_digest_card_envelope_shape():
+    payload = build_digest_card(_digest_with_peers())
+    assert payload["type"] == "message"
+    att = payload["attachments"][0]
+    assert att["contentType"] == "application/vnd.microsoft.card.adaptive"
+    card = att["content"]
+    assert card["type"] == "AdaptiveCard"
+    assert isinstance(card["body"], list) and card["body"]
+
+
+def test_digest_card_includes_owner_name_in_title():
+    payload = build_digest_card(_digest_with_peers(), owner_name="たころん")
+    title = payload["attachments"][0]["content"]["body"][0]["text"]
+    assert "たころん" in title
+
+
+def test_digest_card_summary_has_counts():
+    payload = build_digest_card(_digest_with_peers())
+    summary = payload["attachments"][0]["content"]["body"][1]["text"]
+    assert "2 人" in summary
+    assert "3 回" in summary  # total sightings
+
+
+def test_digest_card_factset_per_peer():
+    payload = build_digest_card(_digest_with_peers())
+    body = payload["attachments"][0]["content"]["body"]
+    factsets = [b for b in body if b["type"] == "FactSet"]
+    assert len(factsets) == 1
+    titles = [f["title"] for f in factsets[0]["facts"]]
+    # アリス first (2 sightings, closer), then p2 (1 sighting).
+    assert titles[0].startswith("アリス")
+    assert titles[1].startswith("p2")
+    # Lang shown when present, suppressed when None.
+    assert "[ja]" in titles[0]
+    assert "[en]" in titles[1]
+    values = [f["value"] for f in factsets[0]["facts"]]
+    assert "2 回" in values[0]
+    assert "closest=close" in values[0]
+    assert "1 回" in values[1]
+    assert "closest=far" in values[1]
+
+
+def test_digest_card_empty():
+    empty = summarise([])
+    payload = build_digest_card(empty)
+    body = payload["attachments"][0]["content"]["body"]
+    summary = body[1]["text"]
+    assert "ありません" in summary
+    # No factset when empty.
+    assert not any(b["type"] == "FactSet" for b in body)
+
+
+def test_notify_digest_posts(monkeypatch):
+    monkeypatch.setenv(ENV_VAR, "https://example.com/wh")
+    captured: dict[str, Any] = {}
+
+    def opener(req, timeout):
+        captured["body"] = req.data
+        return _FakeResp(200)
+
+    digest = _digest_with_peers()
+    result = notify_digest(digest, owner_name="たころん", opener=opener)
+    assert result.ok is True
+    payload = json.loads(captured["body"].decode("utf-8"))
+    assert payload["type"] == "message"
+    title = payload["attachments"][0]["content"]["body"][0]["text"]
+    assert "たころん" in title
+
+
+def test_notify_digest_propagates_config_error(monkeypatch):
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    with pytest.raises(TeamsConfigError):
+        notify_digest(_digest_with_peers())

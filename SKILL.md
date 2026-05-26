@@ -1,6 +1,6 @@
 ---
 name: opentama
-description: Use this skill when the user wants to interact with their OpenTama — a virtual Tamagotchi-style pet that grows only while connected to the company office WiFi, can talk to other OpenTamas over USB-attached IR adapters, can post status updates to a Microsoft Teams channel via a Power Automate webhook, can be extended via signed plugins, and can be rendered inside retro feature-phone (ガラケー) frames. Trigger phrases include "OpenTama", "たまごっち", "ガラケー", "check on my pet", "feed my tama", "出社", "office pet", "IR communication", "tama plugin", "Teams に通知", "Teams で報告", "post to Teams", and any mention of an office-WiFi-based virtual pet. Use this skill to hatch a new pet, check its status (optionally inside a retro phone frame), feed/play/sleep, exchange greetings/gifts/visits with another OpenTama over IR, post the pet's snapshot to a Teams channel, or install/run a sandboxed plugin. Do NOT use for unrelated WiFi diagnostics, general productivity tools, or other virtual-pet libraries.
+description: Use this skill when the user wants to interact with their OpenTama — a virtual Tamagotchi-style pet that grows only while connected to the company office WiFi, can talk to other OpenTamas over USB-attached IR adapters, can quietly log peer-pet sightings and produce a daily digest of who you ran into, can post status updates and proximity digests to a Microsoft Teams channel via a Power Automate webhook, can be extended via signed plugins, and can be rendered inside retro feature-phone (ガラケー) frames. Trigger phrases include "OpenTama", "たまごっち", "ガラケー", "check on my pet", "feed my tama", "出社", "office pet", "IR communication", "tama plugin", "Teams に通知", "Teams で報告", "post to Teams", "すれ違い", "今日のすれ違い", "proximity", "peer pet", and any mention of an office-WiFi-based virtual pet. Use this skill to hatch a new pet, check its status (optionally inside a retro phone frame), feed/play/sleep, exchange greetings/gifts/visits with another OpenTama over IR, record/list/summarise peer-pet sightings, post the pet's snapshot or the day's proximity digest to a Teams channel, or install/run a sandboxed plugin. Do NOT use for unrelated WiFi diagnostics, general productivity tools, or other virtual-pet libraries.
 license: MIT
 ---
 
@@ -41,6 +41,13 @@ python -m opentama ir listen --port serial:///dev/ttyUSB0  # responder side
 # Post the current snapshot to a Microsoft Teams channel.
 export OPENTAMA_TEAMS_WEBHOOK="https://prod-XX.japaneast.logic.azure.com:443/workflows/..."
 python -m opentama teams notify
+
+# Peer-pet sightings (proximity).
+python -m opentama proximity record peer-abc --nickname アリス --rssi close
+python -m opentama proximity list
+python -m opentama proximity digest                 # plain-text summary
+python -m opentama proximity digest --notify-teams  # also post to Teams
+python -m opentama proximity clear
 
 # Plugins.
 python -m opentama plugin list
@@ -89,6 +96,20 @@ For Teams notifications:
   `{"type": "message", "attachments": [...]}` envelope that the
   *"Post adaptive card in a chat or channel"* action expects.
 - No Microsoft Graph, no OAuth — the webhook URL is the only secret.
+
+For proximity (peer-pet sightings):
+- "今日のすれ違い" / "今日 N 人とすれ違った？" / "proximity digest" →
+  `proximity digest`. Add `--notify-teams` to also post the digest to
+  the configured Teams channel.
+- "ペットが peer-X とすれ違った" / "log a sighting" → `proximity record
+  <peer-id> [--nickname X] [--lang Y] [--rssi close|near|far|unknown]`.
+- "今日のすれ違い一覧" → `proximity list`.
+- "すれ違いログを消して" → `proximity clear`.
+- Storage is a JSONL file at `~/.opentama/proximity.jsonl` (override
+  with `OPENTAMA_PROXIMITY_LOG`). Records are tiny (≈100 bytes each)
+  and deliberately carry only an opaque peer id, optional public
+  nickname, optional language tag, signal-strength bucket, and
+  timestamp — never raw social metadata.
 
 For plugins:
 - "Install/run a plugin" → walk through `plugin checksum` →
@@ -166,6 +187,33 @@ trusted that decides to `import os` and read your home directory.
 True isolation would require OS-level sandboxing; this is an
 educational tool, not a production runtime.
 
+### Proximity (peer-pet sightings)
+
+A two-tier UX for cross-pet encounters (see issue #1):
+
+1. **Background detection.** A pluggable `Detector` quietly logs nearby
+   OpenTama peers throughout the day. Concrete detectors can sit on
+   top of the existing USB-IR transport, Bluetooth LE advertisements,
+   mDNS on the office WiFi, or — in tests — a `LoopbackDetector`. The
+   current release ships the abstract `Detector` protocol, the
+   loopback, and the JSONL log; OS/hardware-specific detectors are
+   left to plugins.
+
+2. **Explicit exchange.** The owner reviews the day's sightings via
+   `opentama proximity digest` and chooses which peers to actually
+   transact with. The exchange itself reuses the existing `Session`
+   API (`greet` / `gift` / `visit`). Nothing in this module auto-
+   installs a skill or auto-gifts; humans gate every cross-pet action.
+
+Records are intentionally tiny and metadata-light: `peer_id`,
+optional `nickname`, optional `lang`, a coarse `rssi_bucket`
+("close" / "near" / "far" / "unknown"), and a unix timestamp.
+
+`proximity digest --notify-teams` posts the summary as an Adaptive
+Card via the same Power Automate webhook used by `teams notify`; the
+card lists each peer once with their sighting count and the closest
+signal-strength bucket observed.
+
 ### Teams integration
 
 OpenTama posts an Adaptive Card snapshot of the pet to a Teams channel
@@ -217,8 +265,13 @@ correctly.
 - `opentama/displays/` — three retro feature-phone display backends
   plus a visual-width-aware layout helper.
 - `opentama/teams.py` — Microsoft Teams integration (Adaptive Card
-  builder, webhook URL resolver, HTTP POST transport, high-level
-  `notify` helper). No third-party deps.
+  builders for both status snapshots and proximity digests, webhook
+  URL resolver, HTTP POST transport, high-level `notify` /
+  `notify_digest` helpers). No third-party deps.
+- `opentama/proximity.py` — peer-pet sighting log, abstract `Detector`
+  protocol, in-memory `LoopbackDetector`, per-peer aggregation
+  (`summarise`), and human-readable `format_digest`. JSONL storage at
+  `~/.opentama/proximity.jsonl`.
 - `examples/plugins/stats_card/` — a sample display plugin.
 - `examples/plugins/ir_ping/` — a sample IR plugin (transmit + receive).
 
