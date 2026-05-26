@@ -6,6 +6,38 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Microsoft Teams integration.** `python -m opentama teams notify`
+  posts an Adaptive Card 1.4 snapshot of the pet (name, stage, stats,
+  recent achievements, office/away state) to a Microsoft Teams channel
+  via a Power Automate *"When a Teams webhook request is received"*
+  workflow. Webhook URL comes from `OPENTAMA_TEAMS_WEBHOOK` or
+  `--webhook-url`. No Microsoft Graph, no OAuth — the URL is the only
+  secret. The CLI refuses non-HTTP(S) URLs to prevent env-var tampering
+  from silently exfiltrating data.
+- `opentama/teams.py` — `build_status_card` / `resolve_webhook_url` /
+  `post_card` / `notify` plus typed errors `TeamsConfigError`,
+  `TeamsTransportError`. No third-party Python dependencies; uses
+  `urllib` only.
+- `tests/test_teams.py` — 22 new tests covering payload shape,
+  office vs. away framing, sick marking, achievement truncation,
+  UTF-8 round-tripping, env-var resolution, URL validation, HTTP
+  and URL error wrapping, response cleanup, and the high-level
+  `notify` helper.
+- `HARDWARE.md` — design note for a possible M5StickC + IR hardware
+  edition (future work, not implemented).
+
+### Fixed
+- **Windows + Japanese-locale crash in `wifi.get_current_ssid`.**
+  `netsh wlan show interfaces` on Japanese Windows occasionally emits
+  bytes the OS-default decoder rejects (e.g. `0x86`), which crashed
+  the subprocess reader thread and left `r.stdout = None`, surfacing
+  as an `AttributeError` from any CLI command that calls `tick()`
+  (`status`, `feed`, `play`, `sleep`). Now decodes with
+  `errors="replace"` and defensively checks `r.stdout is None`. Fixes
+  three previously-failing `tests/test_cli.py` cases on JA-locale
+  Windows hosts; suite now passes 174/174 there.
+
 ## [0.3.4] — 2026-05-15
 
 ### Added

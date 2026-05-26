@@ -164,6 +164,40 @@ def cmd_reset(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- Teams subcommands ------------------------------------------------------
+
+
+def cmd_teams_notify(args: argparse.Namespace) -> int:
+    from .teams import TeamsConfigError, TeamsTransportError, notify
+
+    state = _require_state()
+    tama = _build(state)
+    tama.tick()  # advance growth/decay so the snapshot is current
+    save_state(tama.state)
+
+    try:
+        result = notify(
+            tama,
+            webhook_url=getattr(args, "webhook_url", None),
+            timeout=args.timeout,
+        )
+    except TeamsConfigError as e:
+        print(f"❌ {e}", file=sys.stderr)
+        return 2
+    except TeamsTransportError as e:
+        print(f"❌ Teams transport failed: {e}", file=sys.stderr)
+        return 1
+
+    if result.ok:
+        print(f"📨 Teams notified ({result.status}).")
+        return 0
+    print(
+        f"❌ Teams responded with HTTP {result.status}.",
+        file=sys.stderr,
+    )
+    return 1
+
+
 # --- IR subcommands ---------------------------------------------------------
 
 
@@ -416,6 +450,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional transport URI for IR-capable plugins.",
     )
     prun.set_defaults(func=cmd_plugin_run)
+
+    # --- teams ----------------------------------------------------------
+    pt = sub.add_parser(
+        "teams",
+        help="Microsoft Teams integration (Power Automate webhook).",
+    )
+    pt_sub = pt.add_subparsers(dest="teams_cmd", required=True)
+    ptn = pt_sub.add_parser(
+        "notify", help="Post current pet status to Teams as an Adaptive Card."
+    )
+    ptn.add_argument(
+        "--webhook-url",
+        default=None,
+        help="Override the OPENTAMA_TEAMS_WEBHOOK env var.",
+    )
+    ptn.add_argument(
+        "--timeout",
+        type=float,
+        default=10.0,
+        help="HTTP timeout in seconds (default: 10).",
+    )
+    ptn.set_defaults(func=cmd_teams_notify)
 
     # --- display --------------------------------------------------------
     pd = sub.add_parser("display", help="Inspect available display backends.")

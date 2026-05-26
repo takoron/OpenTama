@@ -1,6 +1,6 @@
 ---
 name: opentama
-description: Use this skill when the user wants to interact with their OpenTama — a virtual Tamagotchi-style pet that grows only while connected to the company office WiFi, can talk to other OpenTamas over USB-attached IR adapters, can be extended via signed plugins, and can be rendered inside retro feature-phone (ガラケー) frames. Trigger phrases include "OpenTama", "たまごっち", "ガラケー", "check on my pet", "feed my tama", "出社", "office pet", "IR communication", "tama plugin", and any mention of an office-WiFi-based virtual pet. Use this skill to hatch a new pet, check its status (optionally inside a retro phone frame), feed/play/sleep, exchange greetings/gifts/visits with another OpenTama over IR, or install/run a sandboxed plugin. Do NOT use for unrelated WiFi diagnostics, general productivity tools, or other virtual-pet libraries.
+description: Use this skill when the user wants to interact with their OpenTama — a virtual Tamagotchi-style pet that grows only while connected to the company office WiFi, can talk to other OpenTamas over USB-attached IR adapters, can post status updates to a Microsoft Teams channel via a Power Automate webhook, can be extended via signed plugins, and can be rendered inside retro feature-phone (ガラケー) frames. Trigger phrases include "OpenTama", "たまごっち", "ガラケー", "check on my pet", "feed my tama", "出社", "office pet", "IR communication", "tama plugin", "Teams に通知", "Teams で報告", "post to Teams", and any mention of an office-WiFi-based virtual pet. Use this skill to hatch a new pet, check its status (optionally inside a retro phone frame), feed/play/sleep, exchange greetings/gifts/visits with another OpenTama over IR, post the pet's snapshot to a Teams channel, or install/run a sandboxed plugin. Do NOT use for unrelated WiFi diagnostics, general productivity tools, or other virtual-pet libraries.
 license: MIT
 ---
 
@@ -37,6 +37,10 @@ python -m opentama ir greet  --port serial:///dev/ttyUSB0
 python -m opentama ir gift   --port serial:///dev/ttyUSB0 --kind food
 python -m opentama ir visit  --port serial:///dev/ttyUSB0
 python -m opentama ir listen --port serial:///dev/ttyUSB0  # responder side
+
+# Post the current snapshot to a Microsoft Teams channel.
+export OPENTAMA_TEAMS_WEBHOOK="https://prod-XX.japaneast.logic.azure.com:443/workflows/..."
+python -m opentama teams notify
 
 # Plugins.
 python -m opentama plugin list
@@ -75,6 +79,16 @@ For IR features:
 - "Receive an IR ping" → `ir listen`.
 - The transport URI is `serial:///dev/ttyUSB0` for typical USB-IR
   adapters; `loopback://` is for local testing.
+
+For Teams notifications:
+- "Teams に通知" / "Teams で報告" / "post to Teams" → `teams notify`.
+- Requires `OPENTAMA_TEAMS_WEBHOOK` to be set, or `--webhook-url` to
+  be passed. The URL is the HTTP endpoint of a Power Automate
+  *"When a Teams webhook request is received"* workflow.
+- The payload is an Adaptive Card 1.4 wrapped in the
+  `{"type": "message", "attachments": [...]}` envelope that the
+  *"Post adaptive card in a chat or channel"* action expects.
+- No Microsoft Graph, no OAuth — the webhook URL is the only secret.
 
 For plugins:
 - "Install/run a plugin" → walk through `plugin checksum` →
@@ -152,6 +166,28 @@ trusted that decides to `import os` and read your home directory.
 True isolation would require OS-level sandboxing; this is an
 educational tool, not a production runtime.
 
+### Teams integration
+
+OpenTama posts an Adaptive Card snapshot of the pet to a Teams channel
+via a Power Automate webhook. The flow expected on the other end is:
+
+```
+Trigger:  When a Teams webhook request is received
+Action:   Post adaptive card in a chat or channel
+          (bind the card body to the trigger payload)
+```
+
+The card includes the pet's name, current stage, an at-office / away
+status line, the three core stats, day count, and the three most recent
+achievement keys. No third-party Python dependencies — `opentama/teams.py`
+talks to the webhook via the standard-library `urllib` only.
+
+`OPENTAMA_TEAMS_WEBHOOK` is the URL that workflow produces. It is the
+only secret involved; treat it like any other webhook URL (don't commit
+it, rotate it if leaked). The CLI refuses any URL that isn't `https://`
+(or `http://` for local testing) to prevent a tampered env var from
+silently exfiltrating data elsewhere.
+
 ### Display backends (ガラケー)
 
 Three retro feature-phone frames render the pet from a `StateView`
@@ -180,6 +216,9 @@ correctly.
   store.
 - `opentama/displays/` — three retro feature-phone display backends
   plus a visual-width-aware layout helper.
+- `opentama/teams.py` — Microsoft Teams integration (Adaptive Card
+  builder, webhook URL resolver, HTTP POST transport, high-level
+  `notify` helper). No third-party deps.
 - `examples/plugins/stats_card/` — a sample display plugin.
 - `examples/plugins/ir_ping/` — a sample IR plugin (transmit + receive).
 

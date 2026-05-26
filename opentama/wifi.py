@@ -105,10 +105,18 @@ def _get_ssid_windows() -> Optional[str]:
             capture_output=True,
             text=True,
             timeout=5,
+            # netsh on Japanese Windows emits cp932 bytes that occasionally
+            # contain sequences the OS-default decoder rejects (e.g. 0x86),
+            # which would otherwise crash the reader thread and leave
+            # r.stdout = None. Replace the few offending bytes; the SSID
+            # itself is ASCII for any normal corporate network.
+            errors="replace",
         )
     except (FileNotFoundError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:
+        return None
+    if r.stdout is None:
         return None
     for raw in r.stdout.splitlines():
         line = raw.strip()
