@@ -19,7 +19,11 @@ Takoron's growth path:
 * **child** — first topping dot lands on the dough.
 * **teen**  — toppings scatter; a small bonito flake starts to dance.
 * **adult** — full Takoron: flake, all toppings, open smile with tongue.
-* **elder** — adult Takoron with extra steam wisps drifting up.
+* **elder** — *Takoron-no-Ohsama* (たころんの王さま): the elder form
+  earns a three-spiked crown. The dancing bonito-flake step from
+  earlier stages settles into a king's diadem; the toppings stay,
+  the cheek dimples stay, the smile stays — only the headdress
+  changes.
 
 A ``sick`` overlay adds two sweat-drop pixels at the top corners.
 
@@ -139,24 +143,26 @@ SPRITES: dict[str, list[str]] = {
         "...########...",
     ],
     # ----- elder ------------------------------------------------------
-    # adult Takoron, now with steam wisps drifting up.
+    # たころんの王さま — Takoron earns a crown. Three spikes on top, a
+    # solid two-row band, and underneath: the same takoyaki we've
+    # always loved (toppings, dimples, contented smile).
     "elder": [
-        "..#.....##....",  # left steam + flake top
-        ".#......####..",  # steam rising + flake
-        "......##.##...",  # flake base
-        "....########..",
-        "...##########.",
-        ".####.###.###.",  # toppings
-        ".#######.####.",
-        ".############.",
-        ".###.####.###.",  # eyes (still ^_^)
-        ".##..####..##.",
+        "..##..##..##..",  # 3 crown spikes
+        ".############.",  # crown band (upper)
+        ".############.",  # crown band (lower)
+        "...########...",  # ball curves out from under the crown
+        "..##########..",  # ball widens
+        ".####.###.###.",  # 青のり / pickled-ginger toppings, row 1
+        ".############.",  # cooked-dough divider
+        ".###.####.###.",  # ^_^ eye upper
+        ".##..####..##.",  # ^_^ eye lower
         ".##.######.##.",  # cheek dimples
-        ".############.",
         ".####.##.####.",  # content smile
-        ".#####..#####.",
-        "..##########..",
+        ".############.",  # body
+        ".############.",  # body
+        "..##########..",  # ball bottom curve
         "...########...",
+        "....######....",
     ],
 }
 

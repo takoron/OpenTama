@@ -6,6 +6,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **`elder` sprite is now たころんの王さま (the king form).** Takoron's
+  elder stage swaps the drifting steam wisps for a three-spiked
+  crown sitting on top of the takoyaki body. Toppings, cheek
+  dimples, and the contented smile are unchanged; the band of the
+  crown spans the full ball width. Triggered by the same growth-
+  points threshold as before (1500 gp). Inspired by an illustration
+  the project owner sent in mid-development — see the closed PR for
+  the original reference image.
+
 ### Added
 - **IR-driven proximity detection.** New `IRProximityDetector` in
   `opentama/proximity.py` wraps any `opentama.ir.transport.IRTransport`
