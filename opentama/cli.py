@@ -300,6 +300,7 @@ def cmd_proximity_scan(args: argparse.Namespace) -> int:
     """Listen on an IR transport for ``--duration`` seconds, log peers seen."""
     from .proximity import (
         IRProximityDetector,
+        IrDAProximityDetector,
         RSSI_BUCKETS,
         append_sighting,
     )
@@ -312,12 +313,17 @@ def cmd_proximity_scan(args: argparse.Namespace) -> int:
         return 2
 
     transport = _open_transport(args.port, getattr(args, "baud", None))
-    detector = IRProximityDetector(transport, rssi_bucket=args.rssi)
+    if args.garake:
+        detector = IrDAProximityDetector(transport, rssi_bucket=args.rssi)
+        mode = "IrDA vObject (ガラケー)"
+    else:
+        detector = IRProximityDetector(transport, rssi_bucket=args.rssi)
+        mode = "OpenTama frames"
 
     end = time.time() + args.duration
     seen = 0
     print(
-        f"📡 scanning IR on {args.port} for {args.duration:.0f}s "
+        f"📡 scanning {mode} on {args.port} for {args.duration:.0f}s "
         f"(rssi={args.rssi})..."
     )
     try:
@@ -684,6 +690,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Signal-strength bucket to tag sightings with "
         "(close / near / far / unknown). USB-IR has no RSSI; "
         "use whatever fits your physical setup.",
+    )
+    pps.add_argument(
+        "--garake",
+        action="store_true",
+        help="Parse incoming bytes as IrDA vCard/vNote vObjects from a "
+        "Japanese feature phone (ガラケー), instead of as OpenTama "
+        "framed protocol. Default rssi for this mode is 'close' since "
+        "IrDA needs the two devices aimed at each other.",
     )
     pps.set_defaults(func=cmd_proximity_scan)
 
