@@ -2,9 +2,12 @@
 
 A tiny ESP32 firmware that turns an [M5StickC Plus2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2)
 into a physical OpenTama pet that periodically introduces itself over
-its built-in IR LED. Pair two of them — or pair one with a PC running
-`python -m opentama proximity scan` — and you have a literal
-赤外線たまごっち sitting on your desk.
+its built-in IR LED **and** — with an external IR Receiver Unit
+plugged into the Grove port — listens for peers' transmissions and
+shows the most recently sighted name right on its own LCD. Pair two
+of them and you have a literal stick-to-stick 赤外線たまごっち sitting
+on your desk; pair one with a PC running
+`python -m opentama proximity scan` for the office-IR ⇄ Teams pipeline.
 
 ## What it does (today)
 
@@ -26,18 +29,45 @@ stick and append `PeerSighting` records to
 `~/.opentama/proximity.jsonl`. From there, the existing pipeline takes
 over: `proximity digest --notify-teams` summarises and posts to Teams.
 
+## Receive (NEW)
+
+The Plus2's built-in chip is an IR **LED** only — no photodiode — so
+true bidirectional behaviour needs an external receiver. Plug an
+[M5Stack IR Unit](https://docs.m5stack.com/en/unit/ir) (or any
+TFDU-class IR-UART receiver) into the Grove port and the firmware
+will:
+
+- Listen on **GPIO 33** at 9600 baud baseband UART (configurable via
+  `OPENTAMA_IR_RX_PIN` in `platformio.ini`; set to `-1` for a
+  transmit-only build).
+- Parse every incoming OpenTama frame using `tryParseFrame()` in
+  `src/opentama_proto.cpp` — same MAGIC resync / CRC-16/CCITT-FALSE
+  check / version gate as `opentama.ir.protocol.parse_stream` on the
+  Python side.
+- For HELLO / STATE / GIFT / VISIT, extract the peer name (`name` /
+  `from`) and:
+  - print it to USB serial (`RX HELLO from <name> (NN B payload)`),
+  - flash a yellow "RX" badge on the LCD,
+  - update the persistent "RX: \<name\> (#N)" strip at the bottom of
+    the screen, where N is the lifetime sighting count.
+- ACK frames are logged but don't update the peer display (they carry
+  no useful identifier on their own).
+
+The receive buffer is bounded at 1 KB and self-trims if a noisy line
+overflows it, so a misaimed neighbouring stick can't wedge the loop.
+
 ## What it does *not* do (yet)
 
-- **No receive.** The Plus2 ships with an IR LED but no IR
-  photodiode, so the firmware can transmit but not listen. To detect a
-  peer's transmissions you need either a PC with a USB-IR adapter, or
-  a second stick equipped with an [M5StickC IR Unit / IR Hat](https://docs.m5stack.com/en/unit/ir).
 - **No state sync from PC.** Pet name / stage / gp are compile-time
   constants set by `OPENTAMA_PET_NAME` / `OPENTAMA_PET_STAGE` /
   `OPENTAMA_PET_GP` in `platformio.ini`. Re-flash to change them.
 - **No power management.** It just hellos every 5 seconds forever.
   Workable on USB-C power; the 200 mAh battery will not last a day
   with the current duty cycle.
+- **No bidirectional handshake.** RX is observational only — the
+  stick logs peers, it doesn't return HELLO automatically or apply
+  happiness deltas. That's the same passive design `IRProximityDetector`
+  uses on the PC side, and it keeps the firmware tiny.
 
 These are all explicit follow-up scope, not bugs.
 
@@ -48,19 +78,16 @@ These are all explicit follow-up scope, not bugs.
 | M5StickC Plus2 (or original M5StickC) | The brain + LCD + IR LED + 2 buttons. | ¥3,000 |
 | USB-C cable | Power + flashing. | already have it |
 | (optional) USB-IR adapter on the receiving PC | Lets a PC pick up the stick's transmissions and feed them into `proximity scan`. Look for "SIR" / "9600 baud" / "TFDU"-class adapters. | ¥1,500–¥3,000 |
-| (optional) M5StickC IR Unit on a second stick | Lets a *second* stick listen for the first. Not implemented in this firmware yet. | ¥800 |
+| (optional) [M5Stack IR Unit](https://docs.m5stack.com/en/unit/ir) on the Grove port | Enables **receive** — lets the stick observe nearby peers and surface them on its LCD. | ¥800 |
 
 ## Pinout
 
-M5StickC Plus2 has the IR LED on **GPIO 19**. The original M5StickC
-puts it on **GPIO 9**. The firmware defaults to GPIO 19 but you can
-override at build time:
+| Direction | Default pin | Notes |
+|---|---|---|
+| **IR TX** (LED) | GPIO 19 (Plus2) / GPIO 9 (original Stick C) | Override at build time via `-DOPENTAMA_IR_LED_PIN=N`. |
+| **IR RX** (receiver data line) | GPIO 33 — Plus2 Grove port | Override via `-DOPENTAMA_IR_RX_PIN=N`. Set to `-1` to compile a transmit-only firmware. |
 
-```bash
-pio run -e m5stick-c-plus2 -e custom -DOPENTAMA_IR_LED_PIN=9
-```
-
-(or just edit `OPENTAMA_IR_LED_PIN` in `src/main.cpp`).
+Grove wiring is direct: red → 3.3 V, black → GND, white (data) → GPIO 33.
 
 ## Physical-layer caveats
 
@@ -106,9 +133,12 @@ python -m opentama proximity digest               # plain-text
 python -m opentama proximity digest --notify-teams   # post to Teams
 ```
 
-**Stick → Stick.** Flash a second stick with a different
-`OPENTAMA_PET_NAME` and add an IR receiver Hat. (Receive support in
-the firmware is on the roadmap; for now use the PC path.)
+**Stick → Stick.** Flash each stick with a different `OPENTAMA_PET_NAME`,
+plug an M5Stack IR Unit into the Grove port of the listener, and aim
+the transmitter's LED at the receiver's Unit window. The receiver's
+LCD shows `RX: <peer name> (#N)` at the bottom of the screen and the
+USB serial log prints `RX HELLO from <peer> ...`. Swap roles to confirm
+the symmetric case.
 
 ## File map
 
@@ -117,20 +147,26 @@ firmware/m5stickc/
 ├── README.md           # ← you are here
 ├── platformio.ini      # PlatformIO env definition
 └── src/
-    ├── main.cpp        # boot, UI, HELLO loop, button handlers
+    ├── main.cpp        # boot, UI, HELLO loop, button handlers, RX loop
     ├── opentama_proto.h
-    ├── opentama_proto.cpp   # frame encoder + CRC16, byte-identical to opentama/ir/protocol.py
+    ├── opentama_proto.cpp   # frame encoder + decoder + CRC16, byte-identical to opentama/ir/protocol.py
     ├── ir_tx.h
-    └── ir_tx.cpp       # bit-bang IR LED at 9600 baud
+    ├── ir_tx.cpp       # bit-bang IR LED at 9600 baud
+    ├── ir_rx.h
+    └── ir_rx.cpp       # Serial1-backed IR receiver
 ```
 
 ## Parity with the Python implementation
 
-The C++ encoder in `opentama_proto.cpp` is a direct port of
-`opentama/ir/protocol.py:encode` and uses the same CRC-16/CCITT-FALSE
-constants (poly `0x1021`, init `0xFFFF`). A round-trip test on the
-Python side (`tests/test_proximity.py::test_python_decodes_c_encoded_hello`)
-decodes the byte sequence the firmware produces for the default
-HELLO and asserts the parsed frame matches what the C++ encoder
-would output — so if you change either side, that test catches the
-drift.
+Both halves of `opentama_proto.cpp` mirror their Python counterparts:
+
+| C++ function | Python counterpart | Test |
+|---|---|---|
+| `encodeFrame()` | `opentama.ir.protocol.encode()` | `tests/test_firmware_parity.py::test_hello_bytes_locked` (byte-for-byte hex lock) |
+| `tryParseFrame()` | `opentama.ir.protocol.decode()` + `parse_stream()` | `tests/test_firmware_parity.py::test_python_round_trip_of_firmware_bytes` |
+| `crc16()` | `opentama.ir.protocol.crc16()` | `tests/test_firmware_parity.py::test_crc16_known_vector` (`crc16(b"123456789") == 0x29B1`) |
+
+`tryParseFrame()` implements the same MAGIC resync rule as Python's
+`parse_stream` — non-zero `*consumed` on parse failure means "skip
+past the garbage / bad-CRC / wrong-version magic and try again";
+zero means "need more bytes, keep what you have."
