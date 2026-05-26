@@ -114,6 +114,12 @@ For proximity (peer-pet sightings):
   on the IR transport for the given duration and logs every HELLO /
   GIFT / VISIT frame it sees as a sighting. The transport URI is the
   same as the `ir` subcommands (`serial://...` or `loopback://`).
+- "ガラケーから赤外線で名刺を受け取って" / "IrDA vCard" / "vCard を受信" →
+  `proximity scan --garake --port serial:///dev/ttyUSB0 --duration 30`.
+  Same as above but parses incoming bytes as IrDA vCard / vNote
+  (the vObject formats Japanese feature phones emit when you
+  "赤外線で名刺を送信"), turning each vCard's `FN` (or `N` /
+  `NICKNAME` fallback) into a peer id.
 - Storage is a JSONL file at `~/.opentama/proximity.jsonl` (override
   with `OPENTAMA_PROXIMITY_LOG`). Records are tiny (≈100 bytes each)
   and deliberately carry only an opaque peer id, optional public
@@ -288,10 +294,15 @@ correctly.
   `notify_digest` helpers). No third-party deps.
 - `opentama/proximity.py` — peer-pet sighting log, abstract `Detector`
   protocol, in-memory `LoopbackDetector`, **`IRProximityDetector`**
-  (wraps an `opentama.ir.transport.IRTransport` and converts inbound
-  HELLO/GIFT/VISIT frames into sightings), per-peer aggregation
-  (`summarise`), and human-readable `format_digest`. JSONL storage
-  at `~/.opentama/proximity.jsonl`.
+  (OpenTama framed-protocol → sightings), **`IrDAProximityDetector`**
+  (IrDA vCard / vNote vObjects from real feature phones → sightings),
+  per-peer aggregation (`summarise`), and human-readable
+  `format_digest`. JSONL storage at `~/.opentama/proximity.jsonl`.
+- `opentama/garake.py` — vObject (vCard / vNote / …) parser plus the
+  `vobject_to_sighting` / `sightings_from_irda_blob` helpers used by
+  `IrDAProximityDetector`. Handles RFC 2425 line folding, Shift-JIS
+  ↔ UTF-8 best-effort decoding, and the `FN` → `N` → `NICKNAME`
+  fallback ladder when mapping a vCard to a peer id.
 - `firmware/m5stickc/` — PlatformIO/Arduino firmware for the M5StickC
   Plus2 that blinks OpenTama frames out the built-in IR LED. Includes
   a C++ port of the frame encoder + CRC-16/CCITT-FALSE that is held

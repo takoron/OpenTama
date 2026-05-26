@@ -268,6 +268,102 @@ class IRProximityDetector:
         )
 
 
+class IrDAProximityDetector:
+    """Detector for IrDA vCard / vNote streams from feature phones (ガラケー).
+
+    Reads bytes from any :class:`opentama.ir.transport.IRTransport`,
+    scans the buffer for vObject blocks (`BEGIN:VCARD … END:VCARD` /
+    `BEGIN:VNOTE … END:VNOTE`), and emits a :class:`PeerSighting` per
+    recognised vObject. Compared with :class:`IRProximityDetector` —
+    which assumes the OpenTama framed protocol — this detector is for
+    the "real ガラケー / IrDA name-card exchange" path.
+
+    Mapping:
+
+    - vCard → ``peer_id`` = ``FN`` (formatted name), or a rebuilt name
+      from ``N``, or ``NICKNAME`` as a last resort.
+    - vNote → ``peer_id`` = the ``BODY`` line.
+
+    Caveats:
+
+    - Assumes the adapter delivers post-OBEX vObject text. Adapters
+      that hand you raw IrLAP frames need an OBEX shim between them
+      and this detector. See :mod:`opentama.garake` for the limits.
+    - The internal buffer is bounded to ``max_buffer_bytes`` (default
+      64 KB). Anything past that gets dropped from the front so a
+      mis-aimed phone can't make the detector grow without limit.
+    """
+
+    DEFAULT_MAX_BUFFER = 64 * 1024
+
+    def __init__(
+        self,
+        transport: "IRTransport",
+        *,
+        rssi_bucket: str = "close",
+        chunk_size: int = 4096,
+        max_buffer_bytes: int = DEFAULT_MAX_BUFFER,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        self.transport = transport
+        self.rssi_bucket = rssi_bucket
+        self.chunk_size = chunk_size
+        self.max_buffer_bytes = max_buffer_bytes
+        self.clock = clock
+        self._buffer: bytes = b""
+
+    def poll(self, timeout: float = 0.0) -> list[PeerSighting]:
+        from .garake import parse_vobject_stream, vobject_to_sighting
+
+        chunk = self.transport.recv(self.chunk_size, timeout=timeout)
+        if chunk:
+            self._buffer += chunk
+        if not self._buffer:
+            return []
+
+        # Trim the buffer if a noisy line lets garbage accumulate.
+        if len(self._buffer) > self.max_buffer_bytes:
+            self._buffer = self._buffer[-self.max_buffer_bytes :]
+
+        vobjects = parse_vobject_stream(self._buffer)
+        if not vobjects:
+            return []
+
+        # Trim consumed prefix: drop everything up to and including the
+        # last END:V... we recognised, so subsequent polls only re-scan
+        # whatever came after.
+        last_end = self._last_consumed_offset(self._buffer, vobjects)
+        if last_end is not None:
+            self._buffer = self._buffer[last_end:]
+
+        out: list[PeerSighting] = []
+        for vobj in vobjects:
+            sighting = vobject_to_sighting(
+                vobj,
+                rssi_bucket=self.rssi_bucket,
+                clock=self.clock,
+            )
+            if sighting is not None:
+                out.append(sighting)
+        return out
+
+    @staticmethod
+    def _last_consumed_offset(
+        buf: bytes, vobjects: list
+    ) -> Optional[int]:
+        """Byte offset just past the last vObject we recognised in ``buf``."""
+        if not vobjects:
+            return None
+        # Recover the kind of the final vObject and find its trailing
+        # END:KIND in the buffer.
+        last = vobjects[-1]
+        needle = f"END:{last.kind}".encode("ascii", errors="ignore")
+        idx = buf.rfind(needle)
+        if idx < 0:
+            return None
+        return idx + len(needle)
+
+
 # --- digest -----------------------------------------------------------------
 
 

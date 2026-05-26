@@ -53,6 +53,36 @@ project adheres to [Semantic Versioning](https://semver.org/).
   CRC-16/CCITT-FALSE known-vector check
   (`crc16(b"123456789") == 0x29B1`). Any drift in either Python or
   C++ encoders trips this immediately.
+- **Feature-phone (ガラケー) IrDA vObject interop.** New module
+  `opentama/garake.py` parses vCard / vNote blocks (the wire formats
+  Japanese feature phones emit over IrDA when you "name-card 送信" on
+  the phone) into `PeerSighting` records. `IrDAProximityDetector` in
+  `opentama/proximity.py` wraps any IRTransport to drain those
+  vObjects out of an incoming byte stream, with a bounded
+  re-scanning buffer that keeps partial vObjects across polls.
+  `python -m opentama proximity scan --garake --port serial://...`
+  switches the existing scan CLI into IrDA mode.
+- 27 new tests in `tests/test_garake.py` covering vObject parsing
+  (line folding, parameter stripping, case-insensitive BEGIN/END,
+  first-occurrence-wins for duplicate keys), Shift-JIS and UTF-8
+  decoding, byte-stream extraction with leading/trailing garbage,
+  vCard → sighting mapping (FN / N / NICKNAME fallback ladder),
+  vNote → sighting mapping, vCalendar skip, and `IrDAProximityDetector`
+  buffer behaviour (partial-vObject hold-over, oversized-buffer
+  trim, two-vCard back-to-back).
+
+### Known limitations / future scope
+
+- **OBEX layer not implemented.** Adapters that hand you post-OBEX
+  vObject text Just Work; adapters that deliver raw IrLAP frames
+  need an OBEX shim between them and `IrDAProximityDetector`.
+- **PC → ガラケー is send-only.** Sending a vCard *back* to a phone
+  requires OBEX PUT, which is deliberately out of scope for the PoC.
+  Symmetric send/receive parity is a follow-up issue.
+- **M5StickC firmware receive.** The current firmware is transmit-
+  only (the Plus2 ships with an IR LED but no photodiode). A
+  receive build requires an IR Receiver Unit / Hat on the stick.
+  Symmetric send/receive parity is a follow-up issue.
 
 ## [0.4.0] — 2026-05-26
 
