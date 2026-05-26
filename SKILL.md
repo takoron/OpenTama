@@ -292,6 +292,12 @@ correctly.
   HELLO/GIFT/VISIT frames into sightings), per-peer aggregation
   (`summarise`), and human-readable `format_digest`. JSONL storage
   at `~/.opentama/proximity.jsonl`.
+- `firmware/m5stickc/` — PlatformIO/Arduino firmware for the M5StickC
+  Plus2 that blinks OpenTama frames out the built-in IR LED. Includes
+  a C++ port of the frame encoder + CRC-16/CCITT-FALSE that is held
+  byte-for-byte identical to `opentama/ir/protocol.py` via
+  `tests/test_firmware_parity.py`. See `firmware/m5stickc/README.md`
+  for parts, pinout, and the two-stick / one-stick + PC demos.
 - `examples/plugins/stats_card/` — a sample display plugin.
 - `examples/plugins/ir_ping/` — a sample IR plugin (transmit + receive).
 

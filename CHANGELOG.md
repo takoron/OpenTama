@@ -24,6 +24,25 @@ project adheres to [Semantic Versioning](https://semver.org/).
   end-to-end test that runs a real `Session.greet()` initiator on
   one loopback endpoint and confirms the other endpoint's detector
   sees the peer).
+- **M5StickC ガラケー firmware (PoC).** `firmware/m5stickc/` — a
+  PlatformIO/Arduino sketch that turns an M5StickC Plus2 into a
+  transmit-only OpenTama pet. Every 5 seconds it blinks a `HELLO`
+  frame out the built-in IR LED at 9600 baud baseband UART; button A
+  sends `GIFT`, button B sends `VISIT`. LCD draws a ガラケー-style
+  screen with the pet name + stage + "carrier strip" header. The
+  frame encoder (`opentama_proto.cpp`) is a byte-for-byte port of
+  `opentama/ir/protocol.py:encode`, including the CRC-16/CCITT-FALSE
+  parameters. Pair it with `python -m opentama proximity scan
+  --port serial:///dev/ttyUSB0` on a PC with a USB-IR adapter to
+  complete the IR → proximity log → Teams pipeline.
+- **Firmware parity test.** `tests/test_firmware_parity.py` (4 cases)
+  pins the exact on-the-wire bytes the firmware should produce for
+  its default HELLO, cross-checks the structural invariants the C++
+  encoder hard-codes (magic / version / BE payload length / CRC),
+  Python round-trip-decodes the locked byte sequence, and includes a
+  CRC-16/CCITT-FALSE known-vector check
+  (`crc16(b"123456789") == 0x29B1`). Any drift in either Python or
+  C++ encoders trips this immediately.
 
 ## [0.4.0] — 2026-05-26
 
