@@ -336,6 +336,55 @@ def cmd_proximity_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_proximity_send_vcard(args: argparse.Namespace) -> int:
+    """Send a vCard to a nearby feature phone over an OBEX-capable transport."""
+    from .obex import (
+        OBEXResponseError,
+        OBEXTransportError,
+        build_vcard_text,
+        send_vcard,
+    )
+
+    transport = _open_transport(args.port, getattr(args, "baud", None))
+    text = build_vcard_text(
+        full_name=args.name,
+        nickname=args.nickname,
+        note=args.note,
+        tel=args.tel,
+        email=args.email,
+    )
+    file_name = args.file_name or f"{args.name}.vcf"
+    print(
+        f"📨 sending vCard '{args.name}' as {file_name} via {args.port}..."
+    )
+    try:
+        try:
+            result = send_vcard(
+                transport,
+                text,
+                name=file_name,
+                mime_type=args.mime_type,
+                timeout=args.timeout,
+            )
+        except OBEXResponseError as e:
+            print(
+                f"❌ phone rejected the exchange (opcode 0x{e.opcode:02x})",
+                file=sys.stderr,
+            )
+            return 1
+        except OBEXTransportError as e:
+            print(f"❌ transport error: {e}", file=sys.stderr)
+            return 1
+    finally:
+        transport.close()
+
+    print(
+        f"vCard sent ✓  (connect=0x{result.connect_response.opcode:02x}, "
+        f"put=0x{result.put_response.opcode:02x})"
+    )
+    return 0
+
+
 # --- IR subcommands ---------------------------------------------------------
 
 
@@ -686,6 +735,56 @@ def build_parser() -> argparse.ArgumentParser:
         "use whatever fits your physical setup.",
     )
     pps.set_defaults(func=cmd_proximity_scan)
+
+    ppsv = pp_sub.add_parser(
+        "send-vcard",
+        help="Send a vCard to a nearby feature phone (ガラケー) over OBEX.",
+    )
+    ppsv.add_argument(
+        "--port",
+        required=True,
+        help="Transport URI (serial:///dev/ttyUSB0 or loopback://). "
+        "The peer must speak OBEX over this link.",
+    )
+    ppsv.add_argument(
+        "--baud", type=int, default=None, help="Baud rate (serial only)."
+    )
+    ppsv.add_argument(
+        "--name",
+        required=True,
+        help="Full name (FN field) to put on the vCard.",
+    )
+    ppsv.add_argument(
+        "--nickname", default=None, help="Optional NICKNAME field."
+    )
+    ppsv.add_argument(
+        "--note",
+        default=None,
+        help="Optional free-form NOTE field (e.g. a greeting message).",
+    )
+    ppsv.add_argument(
+        "--tel", default=None, help="Optional TEL;CELL field."
+    )
+    ppsv.add_argument(
+        "--email", default=None, help="Optional EMAIL;INTERNET field."
+    )
+    ppsv.add_argument(
+        "--file-name",
+        default=None,
+        help="OBEX filename the phone sees (default: <name>.vcf).",
+    )
+    ppsv.add_argument(
+        "--mime-type",
+        default="text/x-vcard",
+        help="MIME type header (default: text/x-vcard).",
+    )
+    ppsv.add_argument(
+        "--timeout",
+        type=float,
+        default=5.0,
+        help="Per-step OBEX response timeout in seconds.",
+    )
+    ppsv.set_defaults(func=cmd_proximity_send_vcard)
 
     # --- teams ----------------------------------------------------------
     pt = sub.add_parser(
