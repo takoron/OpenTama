@@ -33,6 +33,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=7", "build", "twine"]
 ir = ["pyserial>=3.5"]
+docs = ["pillow>=10"]  # scripts/make_cover.py renders docs/takoron_cover.png
 
 [project.scripts]
 opentama = "opentama.cli:main"

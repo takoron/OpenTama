@@ -1,5 +1,7 @@
 # OpenTama 🥚
 
+![Takoron — the six life stages, in colour](docs/takoron_cover.png)
+
 > **出社促進キット.** A Tamagotchi-style virtual pet that grows **only**
 > while you're connected to the office WiFi. Ships as a Claude Code
 > skill, talks to other OpenTamas over USB IR, and lives inside a retro
@@ -124,11 +126,13 @@ browned dough, green nori, red pickled ginger, a pale bonito flake, and a
 cream face with pink cheeks. The same per-pixel art is the project's
 official illustration of the pet across all six life stages.
 
-Open [docs/takoron_preview.html](docs/takoron_preview.html) in any browser
-for a side-by-side of every stage (たまご → ご長老). The page is generated
-straight from the art source, so it never drifts from what the app draws:
+The cover image above ([docs/takoron_cover.png](docs/takoron_cover.png)) and
+the interactive [docs/takoron_preview.html](docs/takoron_preview.html) both
+show every stage (たまご → ご長老) side by side. Both are generated straight
+from the art source, so they never drift from what the app draws:
 
 ```bash
+python scripts/make_cover.py     # regenerates docs/takoron_cover.png  (Pillow)
 python scripts/make_preview.py   # regenerates docs/takoron_preview.html
 ```
 
@@ -180,8 +184,9 @@ opentama/
     └── wide.py        # late-era widescreen ガラケー
 ```
 
-Plus `scripts/make_preview.py` (regenerates the colour preview),
-`docs/takoron_preview.html` (the generated illustration),
+Plus `scripts/make_cover.py` + `scripts/make_preview.py` (regenerate the
+colour cover image and HTML preview), `docs/takoron_cover.png` and
+`docs/takoron_preview.html` (the generated illustrations),
 `examples/plugins/` with two reference plugins (`stats_card`, `ir_ping`),
 and `tests/` with 304 tests.
 
