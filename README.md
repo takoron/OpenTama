@@ -117,6 +117,25 @@ opentama ir greet --port serial:///dev/ttyUSB0
 かつおぶしの飾り、上半分にトッピングの点々、^_^ の閉じ目、
 両ほっぺのチーク、開いた口からペロッと舌が見えます。
 
+### Takoron in colour
+
+On a truecolor terminal `opentama show` renders Takoron in full colour —
+browned dough, green nori, red pickled ginger, a pale bonito flake, and a
+cream face with pink cheeks. The same per-pixel art is the project's
+official illustration of the pet across all six life stages.
+
+Open [docs/takoron_preview.html](docs/takoron_preview.html) in any browser
+for a side-by-side of every stage (たまご → ご長老). The page is generated
+straight from the art source, so it never drifts from what the app draws:
+
+```bash
+python scripts/make_preview.py   # regenerates docs/takoron_preview.html
+```
+
+The colour grid lives in [`opentama/art.py`](opentama/art.py) (a per-pixel
+`PALETTE` + `GRIDS`); the compact monochrome bitmaps the ガラケー frames use
+stay in `opentama/sprites.py`.
+
 ## Sharing the pet inside your company
 
 There are three good ways:
@@ -143,7 +162,8 @@ opentama/
 ├── core.py            # the Tamagotchi class (DI: ssid_provider, clock)
 ├── state.py           # JSON-backed TamaState
 ├── stages.py          # life stages
-├── sprites.py         # pixel-art bitmaps + half-block renderer
+├── sprites.py         # mono pixel-art bitmaps + half-block renderer
+├── art.py             # full-colour per-pixel portrait (PALETTE + GRIDS)
 ├── wifi.py            # cross-platform SSID detection
 ├── cli.py             # argparse CLI (opentama / python -m opentama)
 ├── ir/
@@ -160,8 +180,10 @@ opentama/
     └── wide.py        # late-era widescreen ガラケー
 ```
 
-Plus `examples/plugins/` with two reference plugins (`stats_card`,
-`ir_ping`) and `tests/` with 152 tests.
+Plus `scripts/make_preview.py` (regenerates the colour preview),
+`docs/takoron_preview.html` (the generated illustration),
+`examples/plugins/` with two reference plugins (`stats_card`, `ir_ping`),
+and `tests/` with 152 tests.
 
 ## Tests
 
@@ -190,8 +212,9 @@ honest, add a test.
 
 The **software** is MIT — see [LICENSE](LICENSE).
 
-The bundled **Takoron character art** (`opentama/sprites.py`) is an
-original mascot by the project maintainer and is governed by
+The bundled **Takoron character art** (`opentama/sprites.py` and
+`opentama/art.py`) is an original mascot by the project maintainer and is
+governed by
 [CHARACTER.md](CHARACTER.md), which spells out what is and isn't
 granted. In short:
 
