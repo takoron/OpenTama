@@ -143,22 +143,24 @@ SPRITES: dict[str, list[str]] = {
         "...########...",
     ],
     # ----- elder ------------------------------------------------------
-    # たころんの王さま — Takoron earns a crown. Three spikes on top, a
-    # solid two-row band, and underneath: the same takoyaki we've
-    # always loved (toppings, dimples, contented smile).
+    # たころんの王さま — faithful to the project owner's reference
+    # illustration: three tall pointed crown spikes, a wide two-row
+    # crown band with a clear gap above the takoyaki, scattered 青のり
+    # dots on the upper half, two round dot eyes (not the ^_^ form
+    # used by younger stages), and a small content smile.
     "elder": [
-        "..##..##..##..",  # 3 crown spikes
+        "..#...##...#..",  # crown spike tips (3 peaks: cols 2, 6-7, 11)
+        ".###.####.###.",  # crown spike bodies, widening
         ".############.",  # crown band (upper)
         ".############.",  # crown band (lower)
-        "...########...",  # ball curves out from under the crown
-        "..##########..",  # ball widens
-        ".####.###.###.",  # 青のり / pickled-ginger toppings, row 1
+        "..##########..",  # ball top curve — small visual gap below crown
+        ".############.",  # ball widens
+        ".####.###.###.",  # 青のり dots, scattered (row 1)
+        ".##.######.##.",  # 青のり dots, scattered (row 2)
         ".############.",  # cooked-dough divider
-        ".###.####.###.",  # ^_^ eye upper
-        ".##..####..##.",  # ^_^ eye lower
-        ".##.######.##.",  # cheek dimples
-        ".####.##.####.",  # content smile
-        ".############.",  # body
+        "...##....##...",  # round dot eyes (left + right) — distinct from ^_^
+        ".############.",  # face mid-band
+        ".####.##.####.",  # small content smile
         ".############.",  # body
         "..##########..",  # ball bottom curve
         "...########...",
