@@ -7,7 +7,7 @@
 
 | | |
 |--|--|
-| status | beta — 152 tests, three OS targets in CI |
+| status | beta — 304 tests, three OS targets in CI |
 | python | 3.11 + (uses stdlib `tomllib`) |
 | license | MIT |
 | size | < 30 KB of source; zero runtime dependencies (pyserial optional for IR hardware) |
@@ -183,7 +183,7 @@ opentama/
 Plus `scripts/make_preview.py` (regenerates the colour preview),
 `docs/takoron_preview.html` (the generated illustration),
 `examples/plugins/` with two reference plugins (`stats_card`, `ir_ping`),
-and `tests/` with 152 tests.
+and `tests/` with 304 tests.
 
 ## Tests
 
